@@ -1,0 +1,69 @@
+*ID GIE1U406
+*/ U.M. 4.6 unix / source code change form / header   version 06/01/99
+*/ CODE WRITERS MUST READ THE ACCOMPANYING INSTRUCTIONS FOR THIS BUILD:
+*/  - See http://fr0800/umdoc/hegui/t3e4.6.html#chgfinst
+*/ 
+*/SOC:-> Used for MASS testing - to make a copy of CRACER trigger files.
+*/->: fuller description of mod.: purpose, relevant configurations, 
+*/-> applicable previous releases, dependencies
+*/
+*/ Has an entry been lodged in the Problem Reporting System? [Y|N]      
+*/
+*/ THIS CODE IS INTENDED FOR INCLUSION IN THE 4.6 BUILD      [Y|N]
+*/ .....................................................................
+*/   Author[s]:-> E-mail:-> @meto.gov.uk 
+*/ Reviewer[s]:-> E-mail:-> @meto.gov.uk
+*/
+*/    "I have checked this change. When provided, the advance design 
+*/  specification was agreed and adequate, and the new code conforms to
+*/  Unified Model standards."
+*/
+*/  DESIGN SPEC. WAS REVIEWED ON: ......      REVIEWER[S] SIGNATURES
+*/                                            ----------------------
+*/    DATE CODE REVIEWED: ......
+*/  .....................................................................
+*/
+*/  WILL CHANGES AFFECT ANCILLARY FILES?         [Y|N]
+*/  ARE ANY CHANGES TO STASHMASTER FILES NEEDED? [Y|N] 
+*/  USER INTERFACE ACTION REQUIRED?              [Y|N]
+*/ 
+*/  TESTED IN CONFIGURATIONS:->
+*/  TESTS RUN BY [PERSON]:->
+*/ 
+*/  WILL THE CHANGES SLOW DOWN THE MODEL?        [Y|N]
+*/  -> Further details
+*/  CHANGES WILL INCREASE MEMORY CONSUMPTION?    [Y|N]   
+*/  -> Further details
+*/
+*/ | Re-start dumps bit compare with those created without the change 
+*/ V MARK [Y| ] BELOW; leave rest of lines untouched.
+*/
+*/   Control Code    loses bit comparison
+*/   Atmosphere (assuming same science options chosen)   loses b.c.
+*/   Ocean       loses bit comparison
+*/   Wave        loses bit comparison
+*/   Reconfiguration   loses bit comparison
+*/   Diagnostics      lose bit comparison
+*/ For Y2K compliance checking:  
+*/ DOES THIS CHANGE INTERACT WITH DATE CALCULATIONS IN ANY WAY? [Y|N]   
+*/ 
+*/  SECTIONS (TO BE) CHANGED:
+*/
+*/  SECTIONS (TO BE) DELETED? 
+*/
+*/  NEW SECTIONS?  Fill in form http://www-hc/~hadmk/STASHmaster_change.html,
+*/  and give section numbers below:
+*/  
+*/  *DEFS ADDED OR REMOVED: 
+*/
+*/  **Existing** decks being changed [with *I, *D, *B directives]
+*/ ->
+*/
+*/  Decks being created or purged [with *DECK, *COMDECK, *PURGEDK]
+*/ *......K  Deck name   Section#.vr
+*/ -> 
+*/ ......................................................................
+*/ ANY REFERENCES TO EXTERNAL DOCUMENTS-> instead of design spec.
+*/  ...OR ... ADVANCE DESIGN SPECIFICATION (optional) 
+*/ ->    
+*//////////////////////////////////////////////////////////////////////// 

@@ -1,0 +1,4 @@
+*ID DFRM_SEG
+*DECLARE DUMPCTL1
+*D GIE1F405.27
+ 1011     FORMAT('..........',i5.5)

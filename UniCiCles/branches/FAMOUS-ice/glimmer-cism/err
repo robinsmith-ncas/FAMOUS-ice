@@ -1,0 +1,2117 @@
+libdycore/glimmer_to_dycore.F90
+libglide/bisicles_cdriver.F90
+52a53,54
+>   real(kind=8),dimension(:,:),pointer :: topg_ibc => null() !*FD copy of initial topography data 
+>   real(kind=8),dimension(:,:),pointer :: thck_ibc => null() !*FD copy of initial thickness data
+75a78,85
+>     write(*,*) ' bisicles_post:  range(model%geometry%usrf) = ', minval(model%geometry%usrf) , maxval(model%geometry%usrf)
+>     !call write_log(message)
+>     write(*,*) ' bisicles_post:  range(model%geometry%topg) = ', minval(model%geometry%topg) , maxval(model%geometry%topg)
+>     !call write_log(message)
+>     write(*,*) ' bisicles_post:  range(model%geometry%thck) = ', minval(model%geometry%thck) , maxval(model%geometry%thck)
+>     !call write_log(message)
+>    
+>   
+77,79c87,90
+<     call f_bisicles_get_2d_data(model%options%bisicles_instance_id, &
+<          tmp_data , BISICLES_FIELD_CALVED_THICKNESS, & 
+<          dx, dims, boxlo, boxhi)
+---
+>     !BISICLES HAS DISABLED THIS NOW IT HAS A PROPER MELANGE MODEL?
+>     !call f_bisicles_get_2d_data(model%options%bisicles_instance_id, &
+>     !     tmp_data , BISICLES_FIELD_MELANGE_THICKNESS, & 
+>     !     dx, dims, boxlo, boxhi)
+82c93,94
+<     model%climate%calving = tmp_data
+---
+>     !model%climate%calving = tmp_data
+>     model%climate%calving = 0.
+129d140
+< 
+138a150,151
+>     deallocate(thck_ibc)
+>     deallocate(topg_ibc)
+162a176,177
+>     
+>     !a bit of workspace is nice
+187a203,209
+>     !set GIA data
+>     !bisicles needs the time derivative of the bedrock elevation 
+>     !(since its own DEM might be higher resolution)
+>     call f_bisicles_set_2d_data(model%options%bisicles_instance_id, &
+>          model%isostasy%gia, BISICLES_FIELD_TOPOGRAPHY_FLUX, & 
+>          dx, dims, boxlo, boxhi)
+> 
+190a213,218
+>     !Need (maybe) copies of topg and thck because I want to 
+>     !update model%geometry%topg and model%geometry%thck
+>     allocate(topg_ibc(model%general%ewn,model%general%nsn))
+>     topg_ibc=  model%geometry%topg
+>     allocate(thck_ibc(model%general%ewn,model%general%nsn))
+>     thck_ibc = model%geometry%thck
+192,193c220
+<          model%geometry%thck, model%geometry%topg, &
+<          dx, dims, boxlo, boxhi) 
+---
+>          thck_ibc, topg_ibc, dx, dims, boxlo, boxhi) 
+228d254
+<     
+270a297,312
+>   
+>   subroutine bisicles_get_thk_harmonic(model, outarray)
+>     !stand in for glide_get_thk when the harmonic average is preffered.
+>     !note the outout array is real (not double!)
+> 
+>     type(glide_global_type), intent(in) :: model  ! glide model instance
+>     real, dimension(:,:), intent(inout) :: outarray
+> 
+>     call f_bisicles_get_2d_data(model%options%bisicles_instance_id, &
+>          tmp_data, BISICLES_FIELD_ICE_THICKNESS_HARMONIC, & 
+>          dx, dims, boxlo, boxhi)
+> 
+>     outarray = tmp_data
+> 
+>   end subroutine bisicles_get_thk_harmonic
+>   
+libglide/glide_setup.F90
+100c100
+< 
+---
+>     
+118c118
+< 
+---
+>    
+1283,1285c1283,1285
+<           if (tasks > 1) then
+<              call write_log('Error, elastic lithosphere not supported for multiple processors',GM_FATAL)
+<           endif
+---
+>           !if (tasks > 1) then
+>           !   call write_log('Error, elastic lithosphere not supported for multiple processors',GM_FATAL)
+>           !endif
+libglide/glide_stop.F90
+libglide/glide_types.F90
+883c883
+< 
+---
+>      real(dp),dimension(:,:),pointer :: gia => null()   !the gia, ie dtopg/dt
+1422a1423
+>     call coordsystem_allocate(model%general%ice_grid, model%isostasy%gia)
+1690c1691,1693
+<        deallocate(model%isostasy%relx)
+---
+>          deallocate(model%isostasy%relx)
+>     if (associated(model%isostasy%gia)) &
+>          deallocate(model%isostasy%gia)
+1692c1695
+<        deallocate(model%isostasy%load)
+---
+>          deallocate(model%isostasy%load)
+1694c1697
+<        deallocate(model%isostasy%load_factors)
+---
+>          deallocate(model%isostasy%load_factors)
+libglint/glint_initialise.F90
+69a70
+>     use glint_isostasy
+156c157
+<       call write_log(" after bisicles_initialise ")
+---
+>       !initialize the state, either from scrtach or a from restart
+158c159,162
+<       call write_log(" after bisicles_init_state_diagnostic ")
+---
+>       !call to glint_isostasy_initialize needs to be after bisicles_init_state_diagnostic
+>       !since it can depend on the initial topography
+>       call glint_isostasy_initialise(instance%model)
+> 
+328c332
+<                                     grid,             &
+---
+>                                     grid,                               &
+329a334
+>                                     temp_upper_bc,                      &
+341c346
+<     use glint_io          , only: glint_io_createall     , glint_io_writeall
+---
+>     use glint_io          , only: glint_io_createall     , glint_io_writeall, glint_io_readall
+342a348
+>     use glint_isostasy
+365a372,373
+>     integer,               intent(in)    :: temp_upper_bc    ! does the GCM send a temp and get a flux(0)
+>                                                              ! or send a temp and get a flux(0)
+371c379
+<     integer, optional, intent(in) :: um_time  
+---
+>     integer, optional, intent(in) :: um_time
+429d436
+<       call write_log(" going into bisicles_initialise (GCM) ")
+431,433c438
+<       write(message,*)" going into bisicles_init_state", um_time
+<       call write_log(message)
+<       !initialize the state, either from scrtach or a from restart
+---
+>       !initialise the state, either from scrtach or a from restart
+435c440,442
+<       call write_log(" after bisicles_init_state ")
+---
+>       !call to glint_isostasy_initialise needs to be after bisicles_init_state_diagnostic
+>       !since it can depend on the initial topography
+>       call glint_isostasy_initialise(instance%model)
+506,507c513,519
+< 
+<     call glint_i_readdata(instance)
+---
+>     ! SLC : is this needed in the _gcm version? given that it wants to
+>     !       read data into arrays that are not used or even allocated?
+>     !call glint_i_readdata(instance)
+>     ! RSS : yes, we still need out_mask. Can just
+>     call glint_io_readall(instance, instance%model)
+>     ! as long as siced and snowd aren't in the file it won't try to read to the
+>     ! unallocated, unused  variables
+514a527,529
+> 
+> 
+> 
+527a543,546
+>     instance%mbal_tstep = instance%mbal_accum%mbal%tstep
+> 
+>     instance%model%climate%temp_upper_bc_type = temp_upper_bc
+> 
+666a686,688
+> 
+>        instance%model%climate%lati(:,:)=instance%downs%llats(:,:)
+>        instance%model%climate%loni(:,:)=instance%downs%llons(:,:)
+libglint/glint_main.F90
+148c148
+<     !   tsfc = surface ground temperature (deg C)
+---
+>     !   tsfc = surface ground temperature (deg C) (or hflux(W/m2) if temp_upper_bc=1)
+156c156
+<     !   ghflx = heat flux from the ice interior to the surface (W/m^2)
+---
+>     !   ghflx = heat flux from the ice interior to the surface (W/m^2) (or temp(C) if temp_upper_bc=1)
+196d195
+< 
+331,332d329
+< 
+< 
+590a588
+>                                   temp_upper_bc_in,               &
+594d591
+<                                   glc_nmsk,                       &
+596a594
+>                                   gtopo_gbm,                      &
+599d596
+<                                   gmask3D,                        &
+601,603c598
+<                                   gcm_debug,    gcm_fileunit, um_time)
+< 
+<     ! SEG 27/2/17 Added gmask3D argument
+---
+>                                   gcm_debug,    gcm_fileunit, model_time)
+625a621
+>     integer,optional,                intent(in)    :: temp_upper_bc_in
+632d627
+<     integer,                optional,intent(in)    :: glc_nmsk    !*FD number of masks from GCM input  SEG 28/2/17
+639a635
+>     real(rk),dimension(:,:),  optional,intent(out) :: gtopo_gbm     !*FD gridbox mean surface elevation (m)
+641d636
+<     integer, dimension(:,:,:,:),  optional,intent(in):: gmask3D     !*FD mask = 1 where global data are valid SEG 27/2/17
+648c643
+<       integer, optional, intent(in) :: um_time ! the time from the um, not the same as start time
+---
+>       integer, optional, intent(in) :: model_time ! the time from the um, not the same as start time
+659c654
+<     integer :: i
+---
+>     integer :: i, um_time
+665a661,662
+>     real(rk),dimension(:,:),allocatable ::   gtopo_gbm_temp
+> 
+670d666
+<     integer :: nmsk      ! number of 3D masks
+671a668
+>     integer :: temp_upper_bc
+676a674,678
+>     um_time=0
+>     if (present(model_time)) then
+>        um_time = model_time
+>     endif
+> 
+717,723d718
+< !+ SEG 28/2/17
+<     nmsk=1
+<     if (present(glc_nmsk)) then
+<        nmsk = glc_nmsk
+<     endif
+< !- SEG 28/2/17
+< 
+750,756d744
+<     ! SEG 27/2/17       
+<     if (present(gmask3D) .and. nec > 1 .and. nmsk >1) then
+<        call new_global_grid(params%g_grid, longs, lats, &
+<            nec=nec, nmsk=nmsk, mask3D=gmask3D)
+<        write (stdout,*) 'Trying to allocate 3D grid mask ',nec,nmsk
+<     endif
+< 
+764d751
+<        write (stdout,*) 'g_grid%nec =', params%g_grid%nec
+807a795,797
+>     temp_upper_bc=0
+>     if (present(temp_upper_bc_in)) temp_upper_bc=temp_upper_bc_in
+> 
+855a846
+>                                    temp_upper_bc,                                &
+897a889
+>     if (present(gtopo_gbm)) gtopo_gbm = 0.0
+907a900
+>     allocate(gtopo_gbm_temp(params%g_grid%nx, params%g_grid%ny))
+939a933
+>                                       gtopo_gbm_temp,                          &
+968a963,965
+>         if (present(gtopo_gbm))                                    &
+>                gtopo_gbm = splice_field(gtopo_gbm, gtopo_gbm_temp, &
+>                params%instances(i)%frac_coverage, params%cov_normalise)
+973c970
+<     deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp, glfrac_temp)
+---
+>     deallocate(gfrac_temp, gtopo_temp, gtopo_gbm_temp, grofi_temp, grofl_temp, ghflx_temp, glfrac_temp)
+1346a1344
+>                        gtopo_gbm,                       &
+1350,1353c1348
+<                        gareas,         glfrac,          &
+<                        Fmask,          Fmask3D,         &
+<                        qsmb_lev,                        &
+<                        seg_diag)
+---
+>                        gareas,         glfrac)
+1382c1377
+<     real(rk),dimension(:,:,:),intent(in)    :: tsfc          ! input surface ground temperature (deg C)
+---
+>     real(rk),dimension(:,:,:),intent(in)    :: tsfc          ! input surface ground temperature (deg C) or hflux (W/m2)
+1391a1387
+>     real(rk),dimension(:,:),optional,intent(out) :: gtopo_gbm         ! GCM gridbox mean output surface elevation (m)
+1394c1390
+<     real(rk),dimension(:,:,:),optional,intent(inout) :: ghflx         ! output heat flux (W/m^2, positive down)
+---
+>     real(rk),dimension(:,:,:),optional,intent(inout) :: ghflx         ! output heat flux (W/m^2, positive down) (or temp (C) if temp_upper_bc=1)
+1401,1408d1396
+< !+ SEG 2/3/17
+<     integer,dimension(:,:),optional,intent(in)       :: Fmask
+<     integer,dimension(:,:,:,:),optional,intent(in)  :: Fmask3D
+< !- SEG 2/3/17
+< !+seg 31/Aug/17
+<     real(rk),dimension(:),optional,intent(in)    :: qsmb_lev
+<     logical,optional,intent(in) :: seg_diag
+< !-seg
+1418c1406
+<     real(rk), dimension(:,:), allocatable ::   gcalv_temp, lsdep_temp
+---
+>     real(rk), dimension(:,:), allocatable ::   gcalv_temp, lsdep_temp, gtopo_gbm_temp
+1498a1487
+>        allocate(gtopo_gbm_temp(params%g_grid%nx, params%g_grid%ny))
+1513a1503
+>        if (present(gtopo_gbm)) gtopo_gbm = 0.0
+1544c1534
+<                 write (stdout,*) 'g_av_tsfc (degC) =', params%g_av_tsfc(i,j,n)
+---
+>                 write (stdout,*) 'g_av_tsfc (degC or Wm/2) =', params%g_av_tsfc(i,j,n)
+1553c1543
+<        ! Note on units: We want g_av_qsmb to have units of m per time step.
+---
+>        ! Note on units: We want g_av_qsmb to have units of m per mass_balance_time_step (usually 1yr).
+1558,1567d1547
+< 
+<        !+ SEG 1/3/17
+<        ! Get masks from FAMOUS
+<        ! I assume 2D mask wont changes
+<        if (present(Fmask3D)) then
+<          params%g_grid%mask(:,:)   = Fmask(:,:)
+<          params%g_grid%mask3D(:,:,:,:) = Fmask3D(:,:,:,:)
+<        endif
+<        !- SEG
+< 
+1576,1580c1556,1557
+<          
+<           !+SEG 1/3/17
+<           ! Here, I am assuming that params%g_grid%mask3D has been set 
+<           if (present(gsdep)) then
+<             call glint_i_tstep_gcm(time,                  &
+---
+>           
+>           call glint_i_tstep_gcm(time,                  &
+1587d1563
+<                                  gmask3d = params%g_grid%mask3D, &
+1597,1621c1573,1574
+<                                  calv_g=gcalv_temp,              &
+<                                  qsmb_lev=qsmb_lev, & !seg 31/aug/17
+<                                  seg_diag=seg_diag) ! seg 1/Sep/17
+<           else
+<             call glint_i_tstep_gcm(time,                  &
+<                                  params%instances(i),   &
+<                                  icets,                 &
+<                                  params%g_av_qsmb,      &
+<                                  params%g_av_tsfc,      &
+<                                  params%g_av_topo,      &
+<                                  gmask  = params%g_grid%mask,    &
+<                                  gmask3d = params%g_grid%mask3D, &
+<                                  gfrac  = gfrac_temp,            &
+<                                  gtopo  = gtopo_temp,            &
+<                                  grofi  = grofi_temp,            &
+<                                  grofl  = grofl_temp,            &
+<                                  ghflx  = ghflx_temp,            &
+<                                  ice_vol = icevol_temp,       &
+<                                  areas_g = gareas,               &
+<                               !   sdep_g=gsdep_temp,              &
+<                               !   sdep_l=lsdep_temp,              &
+<                                  calv_g=gcalv_temp,              &
+<                                  qsmb_lev=qsmb_lev, & !seg 31/aug/17
+<                                  seg_diag=seg_diag) ! seg 1/Sep/17
+<           end if
+---
+>                                  calv_g=gcalv_temp )
+> 
+1638,1639c1591
+<           if (present(gsdep)) then
+<             call get_i_upscaled_fields_gcm(params%instances(i), params%g_grid%nec, &
+---
+>           call get_i_upscaled_fields_gcm(params%instances(i), params%g_grid%nec, &
+1643a1596
+>                                          gtopo_gbm_temp,                         &
+1647,1657d1599
+<           else
+<             call get_i_upscaled_fields_gcm(params%instances(i), params%g_grid%nec, &
+<                                          params%instances(i)%lgrid%size%pt(1),   &
+<                                          params%instances(i)%lgrid%size%pt(2),   &
+<                                          params%g_grid%nx,    params%g_grid%ny,  &
+<                                          gfrac_temp,          gtopo_temp,        &
+<                                          grofi_temp,          grofl_temp,        &
+<                                          ghflx_temp,                             &
+<                                          glfrac=glfrac_temp)
+< 
+<           end if  
+1673,1679d1614
+< !+seg
+<              if (present(gsdep)) &
+<                write(stdout,*) 'max nonice snow ',sum(lsdep_temp), &
+<                                                 maxval(lsdep_temp),&
+<                                                 sum(gsdep_temp), &
+<                                                 maxval(gsdep_temp)
+< !-seg
+1681c1616
+<           !write(stdout,*) 'Maybe here?'
+---
+> 
+1705a1641,1643
+>           if (present(gtopo_gbm)) &
+>                gtopo_gbm = splice_field(gtopo_gbm, gtopo_gbm_temp, &
+>                params%instances(i)%frac_coverage, params%cov_normalise)
+1716d1653
+<        !write(stdout,*) 'OR here?'
+1726,1731c1663,1664
+<        !write(stdout,*) 'OR there?'
+<        deallocate(gfrac_temp, gtopo_temp, grofi_temp, grofl_temp, ghflx_temp &
+<                   ,glfrac_temp, gsdep_temp, gcalv_temp)
+<        if(present(gsdep)) &
+<          deallocate(lsdep_temp)
+<        !write(stdout,*) 'OR care?'
+---
+>        deallocate(gfrac_temp, gtopo_temp, gtopo_gbm_temp, grofi_temp, grofl_temp, ghflx_temp &
+>                   ,glfrac_temp, gsdep_temp, lsdep_temp, gcalv_temp)
+1773d1705
+< 
+1776c1708
+< #endif
+---
+> 
+1785c1717
+< #ifdef BISICLES_CDRIVER
+---
+> 
+1787c1719
+< #endif       
+---
+>        
+1792c1724
+< 
+---
+> #endif
+2183c2115
+<     real(rk),dimension(:,:,:),intent(in)  :: tsfc     ! surface ground temperature (C)
+---
+>     real(rk),dimension(:,:,:),intent(in)  :: tsfc     ! surface ground temperature (C) or hflux (W/m2)
+libglint/glint_timestep.F90
+43a44,46
+>   real(rk), parameter :: depth_snow2ice =100.    !depth at which nonice-snow accumulation becomes a new icesheet point
+>   real(rk), parameter :: depth_ice2snow =50.    !depth at which ice is deemed to no longer exist in the eyes of the climate model and the mass is handled as nonice_snow
+> 
+84a88
+>     use glint_isostasy
+137,141d140
+<     
+< !+seg
+<     real(sp),dimension(:,:),pointer :: thck_seg => null()
+<     real(sp)   :: tempth_seg
+< !-seg
+149c148
+<        write(stdout,*) 'In glint_i_tstep, time Shush=', time
+---
+>        write(stdout,*) 'In glint_i_tstep, time =', time
+165,168d163
+< !+seg
+<     call coordsystem_allocate(instance%lgrid, thck_seg)
+< !-seg
+< 
+273c268
+<              write (stdout,*) 'Ice sheet timestep, iteration new =', i
+---
+>              write (stdout,*) 'Ice sheet timestep, iteration =', i
+297,300c292,293
+<           ! SEG 16Sep17
+<           ! Getting rid of SMB that might be added to non-ice box
+<           !where(thck_temp <= 0.0 .and. instance%acab < 0.0)
+<           where(thck_temp <= 0.0) 
+---
+> 
+>           where(thck_temp <= 0.0 .and. instance%acab < 0.0)
+329,330d321
+<              write (stdout,*) 'evolve_ice  ',instance%evolve_ice
+<              write (stdout,*) 'dycore  ',instance%model%options%whichdycore
+348,353d338
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                   call glide_get_thk(instance%model, thck_seg)
+<                   write(stdout,*) 'Thick before p1 ',sum(thck_seg)
+<                 endif
+< !-seg
+355,360c340
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                 call glide_get_thk(instance%model, thck_seg)
+<                 write(stdout,*) 'Thick before p2 ',sum(thck_seg)
+<                 endif
+< !-seg
+---
+> 
+362,367c342
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                 call glide_get_thk(instance%model, thck_seg)
+<                 write(stdout,*) 'Thick before p3 ',sum(thck_seg)
+<                 endif
+< !-seg
+---
+> 
+369,374d343
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                 call glide_get_thk(instance%model, thck_seg)
+<                 write(stdout,*) 'Thick after p3 ',sum(thck_seg)
+<                 endif
+< !-seg
+377a347,348
+>                 call glint_isostasy_tstep(instance%model) !TODO : replace all isostasy updates (e.g in glide_tstep_p3)
+> 
+583a555,614
+>   subroutine glint_snow_ice_conversion_gcm( instance, sdep_l, timestep)
+>     ! snow pack <-> ice conversion. Compute sources and sinks of ice such that
+>     ! ice-free/thin ice areas with thick snow see snow -> ice conversion and 
+>     ! thin-ice areas with thin snow see ice -> snow conversion. On input sdep_l 
+>     ! is the snow depth, on output it is the change in snow depth
+>     ! no conversion over ocean tiles
+>  
+>     use glide
+> #ifdef BISICLES_CDRIVER
+>     use bisicles_cdriver
+> #endif
+> 
+>     type(glint_instance), intent(inout)  :: instance     ! Model instance
+>     real(dp), dimension(:,:) ,intent(inout) :: sdep_l !  snow depth on icesheet grid
+>     real(rk), intent(in) :: timestep
+> 
+>     real(sp),dimension(:,:),pointer :: wrk    => null() ! temporary array
+> 
+>     call coordsystem_allocate(instance%lgrid, wrk)
+> 
+>     call glide_get_thk(instance%model,wrk)
+> 
+> #ifdef BISICLES_CDRIVER
+>     !I think this is causing problems now we usually run Glint on the same grid 
+>     !as BISICLES, is biassing surrounding points into the Glint conversion
+>     if (instance%model%options%whichdycore == DYCORE_BISICLES_CDRIVER) then
+>        !if bisicles is the dycore, the harmonic mean of the thickness is
+>        !better - it will be zero in any glimmer cell that include a
+>        !zero thickness fine cell.
+>        call bisicles_get_thk_harmonic(instance%model,wrk)
+>     end if
+> #endif
+> 
+>     instance%acab_ni = 0.
+>     !wrk is now going to be a rate change to acab
+>     where (.not.GLIDE_IS_OCEAN(instance%model%geometry%thkmask) & 
+>          .and. sdep_l > depth_snow2ice .and. wrk < depth_ice2snow)
+>        !snow -> ice where was previously unglaciated
+>        wrk = sdep_l
+>        sdep_l = - sdep_l
+>     elsewhere (.not.GLIDE_IS_OCEAN(instance%model%geometry%thkmask) & 
+>          .and. wrk < depth_ice2snow )
+>        ! ice -> snow
+>        sdep_l = wrk
+>     !-ve increments at the start of the step are unclear and often not
+>     !actually properly effective. Mask so that the UM/SMB masking pretend they've gone
+>     !but don't apply the -ve SMB increment in the ice model
+>     !   wrk = - sdep_l
+>         wrk = 0.0
+>     elsewhere
+>        !true across most of the ice sheet
+>        sdep_l = 0.0
+>        wrk = 0.0
+>     end where
+>     instance%acab_ni = wrk/timestep
+> 
+>   end subroutine glint_snow_ice_conversion_gcm
+> 
+> 
+>   !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+589d619
+<                                gmask3D,                         &
+597,600c627
+<                                calv_g,                          &
+<                                qsmb_lev,       & !seg 31/aug/17
+<                                seg_diag) ! 1/sep/17
+<     ! SEG gmask3D argument added 27/2/17
+---
+>                                calv_g )
+614a642
+>     use glint_isostasy
+627,629c655,657
+<     integer,                intent(in)   :: time         ! Current time in hours
+<     type(glint_instance), intent(inout)  :: instance     ! Model instance
+<     logical,                intent(out)  :: ice_tstep    ! Set if we have done an ice time step
+---
+>     integer,                intent(in)   :: time          ! Current time in hours
+>     type(glint_instance), intent(inout)  :: instance      ! Model instance
+>     logical,                intent(out)  :: ice_tstep     ! Set if we have done an ice time step
+631,632c659,660
+<     real(rk),dimension(:,:,:),intent(in)  :: qsmb_g    ! Depth of new ice (m)
+<     real(rk),dimension(:,:,:),intent(in)  :: tsfc_g    ! Surface temperature (C)
+---
+>     real(rk),dimension(:,:,:),intent(in)  :: qsmb_g    ! SMB on ice on NECs (m/hr)
+>     real(rk),dimension(:,:,:),intent(in)  :: tsfc_g    ! Surface temperature (C) (or hflux W/m2)
+638d665
+<     integer, dimension(:,:,:,:),optional,intent(in):: gmask3D   ! = 1 where global data are valid, else = 0  SEG 27/2/17
+651d677
+<     real(rk),dimension(:),optional,intent(in)    :: qsmb_lev    ! average qsmb fill value seg 31/aug/17
+653,654d678
+<     logical,optional,intent(in) :: seg_diag ! 1/sep/17 seg
+<     
+664,673d687
+< !+seg
+<     real(sp),dimension(:,:),pointer :: ice_wall => null() 
+<     real(sp),dimension(:,:),pointer :: thck_seg => null()
+<     real(sp),dimension(:,:),pointer :: acab_seg => null()
+<     real(sp),dimension(:,:),pointer :: mask_seg => null()
+< 
+<     real(sp)   :: tempth_seg
+< 
+< !-seg
+< 
+676,679c690
+<     real(rk), parameter             :: depth_snow2ice =50.    !depth at which nonice-snow accumulation becomes a new icesheet point - and vice-versa
+<     !+ SEG
+<     character (len=12) :: cseg1
+<     !-SEG
+---
+>     character(len=128) :: message
+681c692
+<     !if (GLC_DEBUG .and. main_task) then
+---
+>     if (GLC_DEBUG .and. main_task) then
+685c696
+<     !end if
+---
+>     end if
+700d710
+<     write(stdout,*) 'Doing the check'
+706d715
+<     write(stdout,*) 'This is a time to do things'
+710,715d718
+< !+seg
+<     call coordsystem_allocate(instance%lgrid, ice_wall)
+<     call coordsystem_allocate(instance%lgrid, thck_seg)
+<     call coordsystem_allocate(instance%lgrid, acab_seg)
+<     call coordsystem_allocate(instance%lgrid, mask_seg)
+< 
+724,727c727
+< 
+<     write(stdout,*) 'Calling downscaling'
+<     write(cseg1,'(i12.12)') time
+<        call glint_downscaling_gcm (instance,              &
+---
+>     call glint_downscaling_gcm (instance,              &
+729,802c729,732
+<                                    topo_g,      cseg1,    &
+<                                    gmask=gmask,           &
+<                                    gmask3D=gmask3D,       &
+<                                    sdep_g=sdep_g,         & 
+<                                    sdep_l=sdep_l,         &
+<                                    areas_g=areas_g ,      &
+<                                    qsmb_lev=qsmb_lev ) !seg 31/aug/17)
+<       !                             gmask,    &
+<       !                             gmask3D,               &
+<       !                             sdep_g,      sdep_l, areas_g , &
+<       !                             qsmb_lev ) !seg 31/aug/17)
+<        ! SEG gmask3D argument added 27/2/17
+< 
+< 
+< 
+< 
+<        ! If snowpack on non-ice fraction has got too big, make some new ice
+<        ! (GCM coverage fractions will get updated during coupling)
+<        !!  ADD TO ACAB INSTEAD? CAN'T DO THE REVERSE OF THAT AT END OF STEP FOR ICE->SNOW TRANSFORM
+<        write(stdout,*) 'sdep_g if block'
+<        if (present(sdep_g)) then
+<          call glide_get_thk(instance%model,thck_temp)
+<          !+SEG
+<          write(stdout,*) 'sdep_l shape ',shape(sdep_l)
+<          write(stdout,*) 'sdep_g shape ',shape(sdep_g)
+<          write(stdout,*) 'thck_temp shape ',shape(thck_temp)
+<          write(stdout,*) 'max g and l',maxval(sdep_g),maxval(sdep_l)
+<          write(stdout,*) 'min g and l',minval(sdep_g),minval(sdep_l)
+<          write(stdout,*) 'depth_snow2ice = ',depth_snow2ice
+<          if (present(seg_diag)) then
+<            open(213,file='cheese'//cseg1//'.dat',form='unformatted')
+<            write(213) sdep_l
+<            write(213) sdep_g
+<            write(213) thck_temp
+<            close(213)
+<          endif
+<          !STOP
+<          !-SEG
+< 
+<          !+SEG 18/Oct/17
+<          ! sdep_l is interpolated to have data everywhere
+<          ! Should be zero at ice and ocean points
+<          ! Above output is unadjusted field
+<          where (GLIDE_IS_OCEAN(instance%model%geometry%thkmask) .OR. &
+<                 thck_temp > 0)
+<            sdep_l=0.0
+<          elsewhere
+<            sdep_l=sdep_l
+<          endwhere
+<          !-SEG
+< 
+<          if (present(seg_diag) .and. main_task) then
+<            open(214,file='cheese_sdep'//cseg1//'.dat',form='unformatted')
+<            write(214) sdep_l !field 1 (0)
+<            write(stdout,*) 'sdep (0) sum',sum(sdep_l),cseg1
+<          endif
+< 
+< ! Turn deep snow into ice
+< ! Convert snow depth into snow-depth anom
+< ! In ice depth? no snow -> ice density convert for sdep_l?
+<          where (sdep_l > depth_snow2ice .AND. thck_temp==0.0)
+<            thck_temp=sdep_l
+<            sdep_l=-thck_temp  
+<          elsewhere
+<            thck_temp=thck_temp
+<            sdep_l=0.
+<          endwhere
+<          if (present(seg_diag) .and. main_task) then
+<             write(214) sdep_l ! field 2 (1)
+<             write(stdout,*) 'sdep (1) sum',sum(sdep_l),cseg1
+<          endif
+<          call glide_set_thk(instance%model,thck_temp)
+<       !! DO I NEED TO CHANGE THE MASK AS WELL?
+<        end if
+---
+>                                    topo_g,      gmask,    &
+> !                                   sdep_g,      sdep_l, areas_g )
+> ! cutting areas_g removes the (doomed?) attempt at GCM-column conservation
+>                                    sdep_g,      sdep_l)
+817,819d746
+<     ! Get ice thickness ----------------------------------------
+< 
+<     call glide_get_thk(instance%model,thck_temp)
+821c748
+<     ! Accumulate acab and artm
+---
+>     ! Accumulate acab and artm from instance%acab -> instance%mbal_accum
+835c762
+<     ! ------------------------------------------------------------------------  
+---
+>    ! ------------------------------------------------------------------------  
+844d770
+< 
+850,875d775
+< !+seg
+<        call glint_get_mbal_gcm(instance%mbal_accum, instance%mbal_accum_time,  &
+<                                  acab_seg,       instance%artm)
+< 
+<        mask_seg = 1.0
+<        where (GLIDE_IS_OCEAN(instance%model%geometry%thkmask))
+<          acab_seg = 0.0
+<          mask_seg = 0.0
+<        endwhere
+< !+seg
+<      
+<        if (present(seg_diag) .and. main_task) then
+<          write(stdout,*) 'Opening land/ocean ice mask'
+<          open(52,file='cheese_mask'//cseg1//'.dat',form='unformatted')
+<          write(52) mask_seg
+<          close(52)
+<        endif
+<        if (present(seg_diag) .and. main_task) then
+<          write(stdout,*) 'Opening cheese_acabthck'
+<          open(216,file='cheese_acabthck'//cseg1//'.dat',form='unformatted')
+<        endif
+<        if (present(seg_diag) .and. main_task) then
+<          write(stdout,*) 'Opening calving'
+<          open(111,file='cheese_calving'//cseg1//'.dat',form='unformatted')
+<        endif
+<        do i = 1, instance%n_icetstep
+876a777
+>        do i = 1, instance%n_icetstep
+878c779
+<              write (stdout,*) 'Ice sheet timestep gcm, iteration =', i
+---
+>              write (stdout,*) 'Ice sheet timestep, iteration =', i
+888,893c789,790
+< !!          call glide_get_usurf(instance%model, instance%local_orog)
+< !!          call glint_remove_bath(instance%local_orog,1,1)
+< 
+<           if (present(seg_diag).and. main_task) &  !++ seg
+<              write(216) thck_temp   !++ seg  f1
+< 
+---
+>           !!          call glide_get_usurf(instance%model, instance%local_orog)
+>           !!          call glint_remove_bath(instance%local_orog,1,1)
+897c794,816
+<           ! Set acab to zero for ocean cells (bed below sea level, no ice present)
+---
+>                                  
+>           write(stdout,*) 'before instance%acab  = ', & 
+>                maxval( instance%acab ), maxval(thck_temp), &
+>                minval( instance%acab ), minval(thck_temp)
+>           !TODO - Change to dp
+>           !where(thck_temp <= 0.0 .and. instance%acab < 0.0)
+>           !UM acab is only science-meaningful on glaciated points. Non-ice snow accumulation
+>           !should take care of rest
+> 
+>           ! Adjust glint acab and ablt for output
+>  
+>           !don't try to take more ice than exists. BISICLES does this
+>           !separately itself too as surfacthicknessource->actvesurfacethicknesssource.
+>           where (instance%acab < -thck_temp .and. thck_temp > 0.0)
+>              instance%acab = -thck_temp
+>           end where
+> 
+>           ! Mask out ablation in ice-free areas
+>           ! Ice < depth_ice2snow is not seen by the climate model/SMB in any capacity
+>           !where(thck_temp <= 1e-9)
+>           where(thck_temp <= depth_ice2snow)
+>              instance%acab = 0.0
+>           end where
+898a818,837
+>          ! If snowpack on non-ice fraction has got too big, make some new ice
+>          ! (GCM coverage fractions will then get updated during coupling
+>           if (i.eq.1 .AND. present(sdep_g)) then
+>            !SLC: RSS original assumes you can modify the thickness directly - but that
+>            !     does not work with BISICLES, because BISICLES owns the thickness. Modify
+>            !     the SMB rate instead. instance%acab is m/coupling step.
+>            !RSS: This MUST ONLY BE DONE once per coupling tstep, (we change the 
+>            !     meaning of sdep_l for the coupler in the process). acab is in units of
+>            !     m/accumulation(coupling)_step here so the effective period to use is 1, 
+>            !     however long the various timesteps really are.
+>            !     Now uses new component acab_ni so can be separated from the
+>            !     UM icetile-derived acab
+>             call glint_snow_ice_conversion_gcm( instance, sdep_l, 1.0_rk)
+>           end if
+>           !it should be OK to keep adding this in every tstep, as instance%acab gets reset
+>           !to the version in mbal_accum at the top of every tstep. acab_ni get reset only when
+>           !glint_snow_ice_conversion_gcm is called
+>           instance%acab = instance%acab + instance%acab_ni
+>           
+>           ! Set acab to zero for ocean cells (bed below sea level, no ice present)
+902,910d840
+<           if (GLC_DEBUG .and. main_task) then
+<              ! Should be the same?
+<              write (stdout,*) 'ACAB compare 0',i,sum(acab_seg),sum(instance%acab)
+<           endif
+< 
+<           if (present(seg_diag) .and. main_task) &  !++ seg
+<              write(216) instance%acab   !++ seg f2
+<                                   
+<           ! Mask out non-accumulation in ice-free areas
+912,925c842,844
+<           !TODO - Change to dp
+<           ! Mask out non-accumulation in ice-free areas
+<           ! SEG 13Oct17
+<           !  - changed this previously in the _non_ gcm routine. bugger.
+<           ! Getting rid of SMB that might be added
+<           ! to non-ice box
+<           where(thck_temp <= 0.0) 
+<              instance%acab = 0.0
+<           end where
+<           if (GLC_DEBUG .and. main_task) then
+<              write (stdout,*) 'ACAB compare 1',i,sum(acab_seg),sum(instance%acab)
+<           endif
+<           if (present(seg_diag).and. main_task) &  !++ seg
+<              write(216) instance%acab   !++ seg f3
+---
+>           write(stdout,*) 'after instance%acab  = ', & 
+>                maxval( instance%acab ), maxval(thck_temp), &
+>                minval( instance%acab ), minval(thck_temp)
+928d846
+< 
+933,948c851,852
+< 
+<           ! Adjust glint acab and ablt for output
+<           ! SEG - moved it 16Oct17
+<           ! BUT: 
+<           where (instance%acab < -thck_temp .and. thck_temp > 0.0)
+<              instance%acab = -thck_temp
+<           end where
+<           if (present(seg_diag) .and. main_task) &  !++ seg
+<              write(216) instance%acab   !++ seg f4
+<  
+<           if (GLC_DEBUG .and. main_task) then
+<              write (stdout,*) 'ACAB compare 2',i,sum(acab_seg),sum(instance%acab)
+<           endif
+< 
+<           !TODO - Just rhow/rhoi without 'real'?
+<           ! Converting to ice density (from water)
+---
+>           !Put the downscaled/accumulated arrays into the actual
+>           !space for the driving data
+950c854,863
+<           call glide_set_artm(instance%model, instance%artm)
+---
+>         
+>           if (instance%model%climate%temp_upper_bc_type == TEMP_BC_TEMPERATURE) then
+>              call glide_set_artm(instance%model, instance%artm)
+>           else if (instance%model%climate%temp_upper_bc_type == TEMP_BC_FLUX) then
+>              !SLC in this case, instance%artm contains the input heat flux (not instance%hflx???
+>              call glide_set_hflx(instance%model, instance%artm)
+>           else
+>              write (message,*) 'invalid model%climate%temp_upper_bc_type = ',instance%model%climate%temp_upper_bc_type
+>              call write_log(message,GM_FATAL,__FILE__, __LINE__)
+>           end if
+960d872
+<              write (stdout,*) 'Doing ice walls. Do I need densiity change?'
+963,967d874
+<           ! Adjust glint acab and ablt for output
+<           !where (instance%acab < -thck_temp .and. thck_temp > 0.0)
+<           !   instance%acab = -thck_temp
+<           !end where
+< 
+975,984d881
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                   call glide_get_thk(instance%model, thck_seg)
+<                   ! Why is this not changing much in the loop?
+<                   write(stdout,*) 'Thick before p1 ',sum(thck_seg),i
+<                   write(stdout,*) 'ACAB1 before p1 ',sum(instance%acab),i
+<                   call glide_get_acab(instance%model, thck_seg)
+<                   write(stdout,*) 'ACAB2 before p1 ',sum(thck_seg),i
+<                 endif
+< !-seg
+988,993d884
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                   call glide_get_thk(instance%model, thck_seg)
+<                   write(stdout,*) 'Thick before p2 ',sum(thck_seg)
+<                 endif
+< !-seg
+996,1001d886
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                   call glide_get_thk(instance%model, thck_seg)
+<                   write(stdout,*) 'Thick before p3 ',sum(thck_seg)
+<                 endif
+< !-seg
+1003,1008d887
+< !+seg
+<                 if (GLC_DEBUG .and. tasks==1) then
+<                   call glide_get_thk(instance%model, thck_seg)
+<                   write(stdout,*) 'Thick after p3 ',sum(thck_seg)
+<                 endif
+< !-seg
+1010a890
+> 
+1011a892,894
+> 
+>                 call glint_isostasy_tstep(instance%model) !TODO : replace all isostasy updates (e.g in glide_tstep_p3)
+> 
+1033d915
+<              write(111) calv_l
+1037d918
+<              write(111) calv_l
+1039,1136d919
+< 
+<           !+seg 30Oct17
+<           ! Old style Fortran
+<           ! Turned off 6Nov17
+< !>!          write(stdout,*) 'Doing ice walls'
+< !>!          call glide_get_thk(instance%model, thck_temp)
+< !>!          call do_ice_wall(instance%model%geometry%thkmask,instance%model%geometry%usrf, &
+< !>!             thck_temp,ice_wall)
+< !>!          call glide_set_thk(instance%model,thck_temp)
+< !>!          if (present(calv_g)) then
+< !>!            call glide_get_calving(instance%model, calve_temp) ! Get present calving
+< !>!            calve_temp=calve_temp+(ice_wall*thk0)              ! Add ice walls
+< !>!            call glide_set_calving(instance%model, calve_temp) ! Update
+< !>!            calv_l=calv_l+(ice_wall*thk0 * real(rhoi/rhow))
+< !>!            write(111) calv_l
+< !>!          end if   
+<           !-seg
+< 
+<           !+seg 17Oct17
+<           ! Give too-thin ice back to GCM as snowpack on non-ice fraction -----------
+<           ! This would be ablated if sent back to FAMOUS (1yr timestep)
+<           ! Use SMB ablation to reduce it?
+<           if (present(sdep_g)) then
+<             call glide_get_thk(instance%model, thck_temp)
+<             call glide_get_thk(instance%model, thck_seg) ! Copy to compute mass diff
+<             if (present(seg_diag) .and. main_task) then
+<                write(214) sdep_l !field 3 (2)
+<                write(stdout,*) 'sdep (2) sum',sum(sdep_l),cseg1, i
+<             endif
+<             ! This is an anomaly
+<             ! Adding thck_temp reduces negative anom
+<             where (thck_temp < depth_snow2ice)
+<               sdep_l=sdep_l+thck_temp
+<               thck_temp=0.0
+<             elsewhere
+<               thck_temp=thck_temp
+<             endwhere
+< 
+< 
+<             if (present(seg_diag) .and. main_task) &
+<                write(214) sdep_l !field 4 (3)
+<             ! Adjust sdep_l
+<             if (GLC_DEBUG .and. tasks==1) &
+<               write(stdout,*) 'sdep 1 ',i,sum(sdep_l),cseg1,minval(sdep_l)
+< ! Turn it back into ice again if accum over accell
+< ! The ACAB should then be recalculate (above) to remove ice
+< ! if tahts the case
+< !+ SEG 20Oct17
+< ! Turned off. 6Nov17
+< !>!            if (present(seg_diag) .and. main_task) &  !++ seg
+< !>!              write(216) thck_temp*real(rhoi/rhow)   !++ seg f5
+< !>!
+< !>!            if (GLC_DEBUG .and. tasks==1) &
+< !>!               write(stdout,*) 'sdep max 1',i,maxval(sdep_l)
+< !>!            where (sdep_l > depth_snow2ice .AND. thck_temp==0.0)
+< !>!              thck_temp=sdep_l
+< !>!              sdep_l=0
+< !>!            elsewhere
+< !>!              thck_temp=thck_temp
+< !>!              sdep_l=sdep_l
+< !>!            endwhere
+< 
+< 
+<             if (GLC_DEBUG .and. tasks==1) &
+<                write(stdout,*) 'sdep max 2',i,maxval(sdep_l)
+< !            if (i > 1) then
+< !              ! Negative acab so add (--), reduce anomaly
+< !              where(acab_seg < 0)
+< !                sdep_l=sdep_l-acab_seg
+< !              elsewhere
+< !                sdep_l=sdep_l
+< !              endwhere
+< !              ! Anomaly now, so mostly negative
+< !              !where(sdep_l < 0)
+< !              !  sdep_l=0
+< !              !elsewhere
+< !              !  sdep_l=sdep_l
+< !              !endwhere
+< !            end if  
+<             if (present(seg_diag) .and. main_task) &
+<                write(214) sdep_l  ! field 5 (4)
+<             if (GLC_DEBUG .and. tasks==1) &
+<               write(stdout,*) 'sdep 2 ',i,sum(sdep_l)
+<      
+<             if (present(seg_diag).and. main_task) &  !++ seg
+<               write(216) thck_temp*real(rhoi/rhow)   !++ seg f6
+< 
+< 
+<             if (GLC_DEBUG .and. tasks==1) then
+<               write(stdout,*) 'Icestep ',i,', snow2ice mdiff ',&
+<                     sum(thck_seg)-sum(thck_temp)
+<               write(stdout,*) 'Icestep ',i,', sum snow anom ',&
+<                     sum(sdep_l)
+<             call glide_set_thk(instance%model,thck_temp)
+< 
+<             endif
+<           endif
+<           !-seg
+1152,1153d934
+<           print*,' IO done'
+< 
+1155,1187d935
+<        if (present(seg_diag) .and. main_task) then
+<           close(214)
+<           close(216)
+<           close(111)
+<        endif
+< 
+<  
+<        ! Give too-thin ice back to GCM as snowpack on non-ice fraction -----------
+< !       if (present(sdep_g)) then
+< !         call glide_get_thk(instance%model,thck_temp)
+< !!+seg
+< !         if (GLC_DEBUG .and. tasks==1) then
+< !            write(stdout,*) 'Thick before snow2ice ',sum(thck_temp)
+< !         endif
+< !!-seg
+< !         tempth_seg=sum(sdep_l)
+< !!         where (thck_temp < depth_snow2ice)
+< !!           sdep_l=sdep_l+thck_temp
+< !!           thck_temp=0.0
+< !!         elsewhere
+< !!           thck_temp=thck_temp
+< !!         endwhere
+< !!         call glide_set_thk(instance%model,thck_temp)
+< !!+seg
+< !         if (GLC_DEBUG .and. tasks==1) then
+< !            call glide_get_thk(instance%model, thck_seg)
+< !            write(stdout,*) 'Thick after snow2ice ',sum(thck_seg)
+< !            write(stdout,*) 'Depth sum diff ',sum(sdep_l)-tempth_seg,maxval(sdep_l)
+< !         endif
+< !!-seg
+< !!       !! DO I NEED TO CHANGE THE MASK AS WELL?
+< !       endif
+< 
+1418,1423c1166,1167
+<                                     topo_g,    cseg1,    &
+<                                     gmask,   &
+<                                     gmask3D,             &
+<                                     sdep_g,     sdep_l, areas_g , &
+<                                     qsmb_lev) !seg 31/aug/17
+<     ! SEG gmask3D argument added 27/2/17
+---
+>                                     topo_g,     gmask,   &
+>                                     sdep_g,     sdep_l, areas_g )
+1432,1454d1175
+< !    interface
+< !     subroutine create_halo_seg2(data_in,mask_in,data_out,mask_out,niter_override)
+< !     real(dp), dimension(:,:), intent(in)  :: data_in
+< !     integer,  dimension(:,:), intent(in)  :: mask_in
+< !     real(dp), dimension(:,:), intent(out) :: data_out
+< !     integer,  dimension(:,:), intent(out) :: mask_out
+< !     integer, intent(in), optional         :: niter_override
+< !     end subroutine create_halo_seg2
+< !   
+< !     subroutine hval_index(inarr,outval)
+< !   
+< !     integer,intent(in)  :: inarr(:)
+< !     integer,intent(out) :: outval
+< !     end subroutine hval_index
+< !
+< !     subroutine hval_type(inarr,ipos,htype)
+< !     integer,intent(in)   :: inarr(:)
+< !     integer,intent(in)   :: ipos
+< !     integer,intent(out)  :: htype
+< !     end subroutine hval_type
+< !
+< !    end interface
+< 
+1462c1183
+<     real(dp),dimension(:,:,:),intent(in) :: qsmb_g       ! Surface mass balance (m)
+---
+>     real(dp),dimension(:,:,:),intent(in) :: qsmb_g       ! Surface mass balance (m/hr)
+1465d1185
+<     character (len=12), intent(in)  :: cseg1 
+1468d1187
+<     integer ,dimension(:,:,:,:),intent(in),optional :: gmask3D
+1473c1192
+<     real(dp),dimension(:), intent(in), optional :: qsmb_lev !seg 31/aug/17
+---
+> 
+1475c1194
+<     real(dp)            :: temp_maskval ! seg 31/aug/17
+---
+> 
+1486,1498c1205
+<        sdep_lE     ! interpolation of global nonice-tile snowdepth         
+< !+seg
+<     real(dp), dimension (:,:,:), allocatable ::   &
+<        r_imask_l, &
+<        r_nmask_l, &
+<        r_lmask_l
+<      
+<     integer(sp), dimension (:,:,:), allocatable ::   &
+<        i_imask_l, &
+<        i_nmask_l, &
+<        i_lmask_l
+< 
+<     real(dp), dimension (:,:), allocatable :: dummy_mask
+---
+>        sdep_lE     ! interpolation of global nonice-tile snowdepth         "
+1507,1525c1214
+< !+seg
+<     integer :: iice,inice,ilnd
+<     integer :: htype
+<     integer,parameter :: imsk=1
+<     integer,parameter :: nimsk=2
+<     integer,parameter :: lmsk=3  ! This was set at 2, bugfix 27Sep17
+< 
+<     real(dp),dimension(:,:),allocatable :: ddata_seg  !30/aug/17
+<     integer ,dimension(:,:),allocatable :: dmask_seg  !30/aug/17
+<     integer ,dimension(:,:),allocatable :: dmaskni_seg  !18/Oct/17
+<     integer ,dimension(:,:),allocatable :: dmasktm_seg  !18/Oct/17
+<     logical                             :: do_halo = .true. !30/aug/17
+< 
+<     real(dp),dimension(:,:,:),allocatable :: qsmb_g_temp
+<     real(dp),dimension(:,:,:),allocatable :: sdep_g_temp
+<  !   integer ,dimension(:,:,:,:),allocatable :: gmask3D_temp
+<  ! changed back to 3D 29Sep17
+<     integer ,dimension(:,:,:),allocatable :: gmask3D_temp
+< !-seg
+---
+> 
+1529,1530d1217
+<     real(dp), dimension(:,:), allocatable :: seg_crapper
+< 
+1542,1561d1228
+<     allocate(r_imask_l(nxl,nyl,nec))
+<     allocate(r_nmask_l(nxl,nyl,nec))
+<     allocate(r_lmask_l(nxl,nyl,nec))
+<     allocate(i_imask_l(nxl,nyl,nec))
+<     allocate(i_nmask_l(nxl,nyl,nec))
+<     allocate(i_lmask_l(nxl,nyl,nec))
+<     allocate(dummy_mask(nxl,nyl))
+< 
+<     do_halo = .true. ! To make sure
+<     if (do_halo) then  !30/aug/17
+<       allocate(ddata_seg(nxg,nyg))
+<       allocate(dmask_seg(nxg,nyg))
+<       allocate(dmaskni_seg(nxg,nyg))
+<       allocate(dmasktm_seg(nxg,nyg))
+<       allocate(qsmb_g_temp(nxg,nyg,nec))
+< !+seg 21Oct      
+<       allocate(sdep_g_temp(nxg,nyg,nec))
+< !      allocate(gmask3D_temp(3,nxg,nyg,nec))
+< ! Changed back to 3D 29Sep17
+<       allocate(gmask3D_temp(nxg,nyg,nec))
+1563,1567d1229
+<       gmask3D_temp=0
+<       write(stdout,*) 'glint_timestep: doing SEG HALO v2'
+<     else
+<       write(stdout,*) 'glint_timestep: SEG HALO turned off'
+<     endif
+1569,1570d1230
+<     if (present(sdep_g)) &
+<        write(stdout,*) 'SDEP_G in the house'
+1573,1741c1233
+<     if (present(gmask3D)) then   ! set local field = maskval where the global field is masked out
+<                                ! (i.e., where instance%downs%lmask = 0).
+<     ! SEG New option 27/2/17
+<     ! SEG increased dimensions of gmask3D 28/2/17
+<     ! Indexing the mask number:should they be params? msk_ice = 1, msk_nice = 2 ?
+<        do n = 1, nec
+< 
+<           if(do_halo) then
+<             write(stdout,*) 'glint_timestep: do_halo',imsk
+<             call create_halo_seg2(qsmb_g(:,:,n),gmask3D(imsk,:,:,n),ddata_seg,dmask_seg,4)
+<             qsmb_g_temp(:,:,n)=ddata_seg
+<             !gmask3D_temp(:,:,n)=dmask_seg
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=qsmb_l(:,:,n), &
+<                                gmask = dmask_seg, &
+<                                maskval=maskval,seg_verb=1)
+< 
+<           else 
+<             if (present(qsmb_lev)) then
+<               temp_maskval=qsmb_lev(n)
+<               write(stdout,*) 'glint_timestep: level, smb_infill ',n,temp_maskval
+<             else
+<               temp_maskval=maskval
+<             endif
+< 
+<             call interp_to_local(instance%lgrid_fulldomain, qsmb_g(:,:,n), instance%downs, localdp=qsmb_l(:,:,n), &
+<                                gmask = gmask3D(1,:,:,n), &
+<                                maskval=temp_maskval,seg_verb=1)
+<           endif
+<           write(stdout,*) 'SMB Interpolation gm with 3D mask',n
+<           write(stdout,*) 'Input max',maxval(qsmb_g(:,:,n))
+<           write(stdout,*) 'Output max',maxval(qsmb_l(:,:,n))
+< 
+<           if(do_halo) then
+<             write(stdout,*) 'glint_timestep: do_halo temp', &
+<               maxval(tsfc_g(:,:,n)),minval(tsfc_g(:,:,n))
+<             call create_halo_seg2(tsfc_g(:,:,n),gmask3D(imsk,:,:,n),ddata_seg,dmasktm_seg,4) ! Doing temp on imsk
+<                                                                                              ! otherwise interpolate
+<                                                                                              ! to non-ice (colder
+<                                                                                              ! regions)
+<             ! dmasktm_seg should be the same as dmask_seg, as we are working on
+<             ! same input mask
+<             write(stdout,*) 'glint_timestep: do_halo temp2', &
+<               maxval(ddata_seg),minval(ddata_seg)
+<             !gmask3D_temp(lmsk,:,:,n)=dmask_seg  !  This should be same at calc in smb step
+<             
+<             
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=tsfc_l(:,:,n), &
+<                                gmask = dmasktm_seg, &
+<             !                   gmask = gmask3D_temp(:,:,n), &
+<                                maskval=maskval,seg_verb=10)
+<             !                   gmask = gmask3D_temp(lmsk,:,:,n), &
+<             !                   maskval=maskval,seg_verb=10)
+<             write(stdout,*) 'glint_timestep: do_halo temp3', &
+<               maxval(tsfc_l(:,:,n)),minval(tsfc_l(:,:,n)),lmsk
+< 
+<           else  
+<             call interp_to_local(instance%lgrid_fulldomain, tsfc_g(:,:,n), instance%downs, localdp=tsfc_l(:,:,n), &
+<                                gmask = gmask3D(lmsk,:,:,n), &
+<                                maskval=maskval,seg_verb=2)
+<           endif
+<           ! Not masking this, as global field
+<           call interp_to_local(instance%lgrid_fulldomain, topo_g(:,:,n), instance%downs, localdp=topo_l(:,:,n))
+< 
+<           if (present(sdep_g)) then
+<             if(do_halo) then
+<               call create_halo_seg2(sdep_g(:,:,n),gmask3D(nimsk,:,:,n),ddata_seg,dmaskni_seg,5)
+<               sdep_g_temp(:,:,n)=ddata_seg     ! This is no longer qsmb
+<               gmask3D_temp(:,:,n)=dmaskni_seg
+< 
+<               call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, &
+<                                localdp=sdep_lE(:,:,n), &
+<                                gmask = dmaskni_seg, &
+<                                maskval=maskval,seg_verb=15)
+< 
+<             else  
+< 
+<               call interp_to_local(instance%lgrid_fulldomain, sdep_g(:,:,n), instance%downs, &
+<                                localdp=sdep_lE(:,:,n), &
+<                                gmask = gmask3D(nimsk,:,:,n), &
+<                                maskval=maskval,seg_verb=3)
+<             endif
+<           endif
+<           ! Need to also interpolate the mask onto a local mask
+< 
+<           ! Ice mask
+<           !dummy_mask=0.0
+<           ! Convert input mask from integer to real
+<           !ddata_seg=gmask3D_temp(:,:,n)
+<           ddata_seg=0.0
+<           ddata_seg=dmask_seg
+< 
+<           if(do_halo) then
+<             write(stdout,*) 'Smearing a mask',maxval(gmask3D_temp(:,:,n)),&
+<                minval(gmask3D_temp(:,:,n)),imsk,n
+<             write(stdout,*) 'sizes 1',size(ddata_seg),size(ddata_seg,1),& 
+<                size(ddata_seg,2)
+<             write(stdout,*) 'sizes 2',size(gmask3D_temp(:,:,n)), &
+<                size(gmask3D_temp(:,:,n),1),&
+<                size(gmask3D_temp(:,:,n),2),&
+<                imsk,n
+<             ! Failing here?! 
+<             !dummy_mask=gmask3D_temp(:,:,n)
+<             write(stdout,*) 'Done this'
+<             ! Using the 'temporary' smeared mask   15Sep17 SEG
+<             !call interp_to_local(instance%lgrid_fulldomain, dummy_mask, instance%downs, localdp=r_imask_l(:,:,n), &
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=r_imask_l(:,:,n), &
+<                  gmask = dmask_seg, maskval=maskval,  seg_verb=7)
+< 
+< !                 gmask = gmask3D_temp(:,:,n), maskval=maskval, &
+< !                 seg_verb=7)
+<           else  
+<             !dummy_mask=gmask3D(imsk,:,:,n)
+<             !call interp_to_local(instance%lgrid_fulldomain, dummy_mask, instance%downs, localdp=r_imask_l(:,:,n), &
+<             ddata_seg=gmask3D(imsk,:,:,n)
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=r_imask_l(:,:,n), &
+<                                gmask = gmask3D(imsk,:,:,n), maskval=maskval, &
+<                                seg_verb=4)
+<           endif
+< 
+< 
+<           ! Non-Ice mask
+<           !dummy_mask=0.0
+<           !dummy_mask=gmask3D(nimsk,:,:,n)
+<           !call interp_to_local(instance%lgrid_fulldomain, dummy_mask, instance%downs, localdp=r_nmask_l(:,:,n), &
+<           ddata_seg=0.0
+<           if(do_halo) then
+<             ddata_seg=dmaskni_seg
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=r_nmask_l(:,:,n), &
+<                                gmask = dmaskni_seg, maskval=maskval, &
+<                                seg_verb=5 )
+< 
+< 
+<           else  
+<           ! Convert input mask from integer to real
+<             ddata_seg=gmask3D(nimsk,:,:,n)
+<             call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=r_nmask_l(:,:,n), &
+<                                gmask = gmask3D(nimsk,:,:,n), maskval=maskval, &
+<                                seg_verb=5 )
+< 
+<           endif
+<           ! All mask
+< !          dummy_mask=0.0
+< !          if(do_halo) then
+< !          write(stdout,*) 'Smearing an other  mask'
+< !            dummy_mask=gmask3D_temp(lmsk,:,:,n)
+< !            call interp_to_local(instance%lgrid_fulldomain, dummy_mask, instance%downs, localdp=r_lmask_l(:,:,n), &
+< !                               gmask = gmask3D_temp(lmsk,:,:,n), &
+< !                               maskval=maskval,seg_verb=12)
+< !          else
+< !          dummy_mask=gmask3D(lmsk,:,:,n)
+< !          call interp_to_local(instance%lgrid_fulldomain, dummy_mask, instance%downs, localdp=r_lmask_l(:,:,n), &
+<           ddata_seg=0.0
+<           ! Convert input mask from integer to real
+<           ddata_seg=gmask3D(lmsk,:,:,n)
+<           call interp_to_local(instance%lgrid_fulldomain, ddata_seg, instance%downs, localdp=r_lmask_l(:,:,n), &
+<                                gmask = gmask3D(lmsk,:,:,n), &
+<                                maskval=maskval,seg_verb=6)
+< !          endif
+< 
+<        enddo
+<        ! Convert to a 0/1 integer mask
+<        i_imask_l=0
+<        i_nmask_l=0
+<        i_lmask_l=0
+<        where(r_imask_l > 1e-4) i_imask_l=1
+<        where(r_nmask_l > 1e-4) i_nmask_l=1
+<        where(r_lmask_l > 1e-4) i_lmask_l=1
+< 
+<     else if (present(gmask)) then   ! set local field = maskval where the global field is masked out
+---
+>     if (present(gmask)) then   ! set local field = maskval where the global field is masked out
+1745,1749c1237
+<                                gmask = gmask, maskval=maskval)
+<           write(stdout,*) 'SMB Interpolation gm ',n
+<           write(stdout,*) 'Input max',maxval(qsmb_g(:,:,n))
+<           write(stdout,*) 'Output max',maxval(qsmb_l(:,:,n))
+< 
+---
+>                                gmask = gmask, maskval=maskval,flag=1.0_rk)
+1752,1753c1240,1241
+<           ! Not masking this, as global field
+<           call interp_to_local(instance%lgrid_fulldomain, topo_g(:,:,n), instance%downs, localdp=topo_l(:,:,n))
+---
+>           call interp_to_local(instance%lgrid_fulldomain, topo_g(:,:,n), instance%downs, localdp=topo_l(:,:,n), &
+>                                gmask = gmask, maskval=maskval)
+1762,1765c1250
+<           call interp_to_local(instance%lgrid_fulldomain, qsmb_g(:,:,n), instance%downs, localdp=qsmb_l(:,:,n))
+<           write(stdout,*) 'SMB Interpolation ',n
+<           write(stdout,*) 'Input max',maxval(qsmb_g(:,:,n))
+<           write(stdout,*) 'Output max',maxval(qsmb_l(:,:,n))
+---
+>           call interp_to_local(instance%lgrid_fulldomain, qsmb_g(:,:,n), instance%downs, localdp=qsmb_l(:,:,n),flag=1.0_rk)
+1815,1846d1299
+<     !+ SEG
+<     ! Writie out instance%model%geometry%usrf here
+<     !- SEG
+< 
+<     !+SEG redo vertical interp
+< 
+<     if (present(sdep_g)) then
+<       open(214,file='cheese_sdepgi'//cseg1//'.dat',form='unformatted')
+<       write(214) sdep_g_temp
+<       write(214) gmask3D_temp
+<       write(214) sdep_lE
+<       close(214)
+<     endif
+<     open(214,file='cheese_qmbgi'//cseg1//'.dat',form='unformatted')
+<       write(214) qsmb_g_temp
+<       write(214) qsmb_l
+<     close(214)
+<     !write(213) qsmb_g
+<     !write(213) qsmb_g_temp
+<     !close(213)
+<     open(213,file='cheeseABD'//cseg1//'.dat',form='unformatted')
+<     write(213) gmask3D(1,:,:,:)
+<     write(213) gmask3D_temp(:,:,:)
+<     write(213) i_imask_l
+< !write(213) gmask3D_temp(3,:,:,:)
+<     write(213) i_lmask_l
+<     close(213)
+<     open(213,file='cheeseEFG'//cseg1//'.dat',form='unformatted')
+<     write(213) tsfc_l
+<     close(213)
+<     !write(stdout,*) 'Starting v interp'
+< 
+1852,1863d1304
+<        if (present(gmask3D)) then
+<          ! Need to find the highest point with valid fraction in vertical
+<          ! SEG 6/17
+<          ! i_imask_l & i_lmask_l make have been smeared 27Sep17
+<          ! NOT i_lmask_l 29Sep17
+<          ! Interp temp using ice mask
+<          call hval_index(i_imask_l(i,j,:),iice)
+<          call hval_index(i_nmask_l(i,j,:),inice)
+<          call hval_index(i_lmask_l(i,j,:),ilnd)
+< 
+<        endif
+<        !write(stdout,*) ' After hval_index',i,j
+1865,1868c1306
+<           write(stdout,*) ' Before p1',i,j
+<           if (present(sdep_g)) &
+<            sdep_l(i,j)=sdep_lE(i,j,1)
+<           !write(stdout,*) ' Before p1.1',i,j
+---
+>           sdep_l(i,j)=sdep_lE(i,j,1)
+1871,1874d1308
+< ! The following works because topo_l interpolated from input gcm 'faketopo'
+< ! i.e. mid-point values _everywhere_ 
+< ! SEG 6/17
+<          !write(stdout,*) ' After p1',i,j
+1876,1891c1310,1312
+<           !write(stdout,*) ' Before p2',i,j
+<           if (present(gmask3D)) then 
+<             ! assign nearest valid data
+<             instance%acab(i,j) = qsmb_l(i,j,iice)
+<             if (present(sdep_g)) &
+<              sdep_l(i,j)=sdep_lE(i,j,inice)
+<             instance%artm(i,j) = tsfc_l(i,j,ilnd) -  &
+<                 lapse*(usrf-topo_l(i,j,ilnd))
+<             !write(stdout,*) ' After p2',i,j
+<           else
+<             instance%acab(i,j) = qsmb_l(i,j,nec)
+<             if (present(sdep_g)) &
+<              sdep_l(i,j)=sdep_lE(i,j,nec)
+<             instance%artm(i,j) = tsfc_l(i,j,nec) - lapse*(usrf-topo_l(i,j,nec))
+<             !write(stdout,*) ' After p3',i,j
+<           endif
+---
+>           sdep_l(i,j)=sdep_lE(i,j,nec)
+>           instance%acab(i,j) = qsmb_l(i,j,nec)
+>           instance%artm(i,j) = tsfc_l(i,j,nec) - lapse*(usrf-topo_l(i,j,nec))
+1893d1313
+<           !write(stdout,*) ' In the chufter',i,j
+1897,1994c1317,1319
+<                 ! DIAG
+<                 if (fact > 1) then
+<                   write(stdout,*) 'We have big fact'
+<                 endif
+< ! SEG 6/17
+< ! Only interpolate if to valid points, otherwise use nearest neighbour
+< ! 
+< ! hval_type return
+< !    n   n-1   htype
+< !    1    1    1
+< !    1    0    2
+< !    0    1    3
+< !    0    0    0
+< ! SEG 1/9/17
+< ! Use level averages if no value for interpolation
+< ! Otherwise we get jumps (if using qsmb_lev)
+< 
+<                 if (present(gmask3D)) then
+<                   ! Changed from n < iice 1Oct17
+<                   if (n <= iice) then
+<                      ! ICE & TEMP
+<                      !write(stdout,*) 'hval + ',i,j
+<                      call hval_type(i_imask_l(i,j,:),n,htype)
+<                      !write(stdout,*) 'hval - ',i,j
+<                              
+<                      if ((htype == 1) .or. (htype == 0)) then 
+<                        ! DIAG
+<                        !if (htype == 0) then
+<                        !  write(stdout,*) 'We have an htype of 0',i,j,n
+<                        !endif
+<                        ! if htype is 0, then there should be nothing to interpolate
+<                        instance%acab(i,j) = fact*qsmb_l(i,j,n-1) + (1._dp-fact)*qsmb_l(i,j,n)
+<                        instance%artm(i,j) = fact*tsfc_l(i,j,n-1) + (1._dp-fact)*tsfc_l(i,j,n)
+<                      else if (htype == 2) then
+<                        if (present(qsmb_lev)) then !1/Sep/17
+<                          instance%acab(i,j) = fact*qsmb_lev(n-1) + (1._dp-fact)*qsmb_l(i,j,n)
+<                        else  
+<                          instance%acab(i,j) = qsmb_l(i,j,n) ! Do not interpolate if point below has
+<                                                             ! no fraction
+<                        endif                                     
+<                        instance%artm(i,j) = tsfc_l(i,j,n)
+<                        ! DIAG
+<                        !write(stdout,*) 'We have an htype of 2',i,j,n
+< 
+<                      else ! htype == 3
+<                        if (present(qsmb_lev)) then !1/Sep/17
+<                          instance%acab(i,j) = fact*qsmb_lev(n-1) + (1._dp-fact)*qsmb_lev(n)
+<                        else
+<                          instance%acab(i,j) = qsmb_l(i,j,n-1)
+<                        endif
+<                        instance%artm(i,j) = tsfc_l(i,j,n-1)
+<                      endif
+<                   else 
+<                      !write(stdout,*) 'Setting def at ',i,j,iice
+<                      instance%acab(i,j) = qsmb_l(i,j,iice)
+<                      instance%artm(i,j) = tsfc_l(i,j,iice)
+<                   endif
+< 
+< !                  if (n < ilnd) then
+< !                     ! TEMP (LAND)
+< !                     call hval_type(i_lmask_l(i,j,:),n,htype)
+< !                     if ((htype == 1) .or. (htype == 0)) then
+< !                       instance%artm(i,j) = fact*tsfc_l(i,j,n-1) + (1._dp-fact)*tsfc_l(i,j,n)
+< !                     else if (htype == 2) then
+< !                       instance%artm(i,j) = tsfc_l(i,j,n)
+< !                     else
+< !                       instance%artm(i,j) = tsfc_l(i,j,n-1)
+< !                     endif
+< !                  else
+< !                     instance%artm(i,j) = tsfc_l(i,j,ilnd)
+< !                  endif   
+< 
+<                   !write(stdout,*) ' After p4',i,j
+< 
+<                   ! Changed from n < inice 1Oct17
+<                   if (present(sdep_g)) then 
+<                    if (n <= inice) then
+<                      ! snowcover (non-ice)
+<                      call hval_type(i_nmask_l(i,j,:),n,htype)
+<                      if ((htype == 1) .or. (htype == 0)) then
+<                        sdep_l(i,j)  = fact*sdep_lE(i,j,n-1)+ (1._dp-fact)*sdep_lE(i,j,n)
+<                      else if  (htype == 2) then
+<                        sdep_l(i,j)  = sdep_lE(i,j,n)
+<                      else
+<                        sdep_l(i,j)  = sdep_lE(i,j,n-1)
+<                      endif
+<                    else
+<                      sdep_l(i,j)  = sdep_lE(i,j,inice)
+<                    endif   
+<                   endif 
+<                   !write(stdout,*) ' After p5',i,j
+<                 else
+<                   ! Non gmask3D case
+<                   instance%acab(i,j) = fact*qsmb_l(i,j,n-1) + (1._dp-fact)*qsmb_l(i,j,n)
+<                   instance%artm(i,j) = fact*tsfc_l(i,j,n-1) + (1._dp-fact)*tsfc_l(i,j,n)
+<                   if (present(sdep_g)) &
+<                    sdep_l(i,j)        = fact*sdep_lE(i,j,n-1)+ (1._dp-fact)*sdep_lE(i,j,n)
+<                 endif
+---
+>                 instance%acab(i,j) = fact*qsmb_l(i,j,n-1) + (1._dp-fact)*qsmb_l(i,j,n)
+>                 instance%artm(i,j) = fact*tsfc_l(i,j,n-1) + (1._dp-fact)*tsfc_l(i,j,n)
+>                 sdep_l(i,j)        = fact*sdep_lE(i,j,n-1)+ (1._dp-fact)*sdep_lE(i,j,n)
+1999,2001c1324,1331
+< 
+<        ! SEG 18/Oct/17
+<        ! Get rid of sdep_l in areas of ice or ocean
+---
+>  
+>        if (instance%acab(i,j) .gt. 150.) then
+>           write(stdout,*)"RSS SMB WARNING",instance%acab(i,j),i,j,usrf
+>           do n = 1, nec
+>             write(stdout,*)n,qsmb_l(i,j,n),topo_l(i,j,n)
+>           end do
+>           write(stdout,*)"RSS SMB WARNING--------------------"
+>        endif
+2020d1349
+<          !write(stdout,*) ' After p6',i,j
+2026,2051d1354
+<     !write(stdout,*) 'Ending v interp'
+<     write(stdout,*) 'ACAB Check 1 (max/min)', & 
+<       maxval(instance%acab),minval(instance%acab)
+< 
+< ! Surface fields
+< !    write(stdout,*) 'Surface fields sizes '
+< !    write(stdout,*) 'acab ',size(instance%acab,1),size(instance%acab,2)
+< !    write(stdout,*) 'artm ',size(instance%artm,1),size(instance%artm,2)
+< !    write(stdout,*) 'sdep_l ',size(instance%sdep_l,1),size(instance%sdep_l,2)
+< 
+<     allocate(seg_crapper(nxl,nyl))
+<     write(stdout,*) 'Surface fields sizes ',nxl,nyl
+<     open(213,file='cheeseLOC'//cseg1//'.dat',form='unformatted')
+< !    do j = 1, nyl
+< !    do i = 1, nxl
+< !     seg_crapper(i,j)=instance%acab(i,j)
+< !    end do
+< !    end do
+<     seg_crapper=instance%acab
+<     write(213) seg_crapper
+<     seg_crapper(:,:)=instance%artm
+<     write(213) seg_crapper
+<     if (present(sdep_g)) &
+<      write(213) sdep_l
+<     close(213) 
+<     deallocate(seg_crapper)
+2054,2137c1357
+<     write(6,*)"adjust SMB to conserve wrt each GCM gridbox. NASTY! But ..."
+<     write(6,*)"We are not doing it here. So there!"
+< 
+< !    !!apply mask as glint_timestep will later do
+< !    call glide_get_thk(instance%model,thck_temp)
+< !    where(thck_temp<=0.0 .and. instance%acab<0.0)
+< !      instance%acab = 0.0
+< !    end where
+< !    where (GLIDE_IS_OCEAN(instance%model%geometry%thkmask))
+< !       instance%acab = 0.0
+< !    endwhere
+< !
+< !    smb_total=0
+< !    !NH only
+< !    do jg = 1, nyg/2
+< !    do ig = 1, nxg
+< !      smb_col_total=0.
+< !      smb_interp_total=0.
+< !      gnumloc=0.
+< !      dxl=instance%lgrid%delta%pt(1)
+< !      dyl=instance%lgrid%delta%pt(2)
+< !      !fractional areas are all in areas_g, simple integral for GCM NEC column total
+< !      do n = 1, nec
+< !         smb_col_total=smb_col_total+areas_g(ig,jg,n)*qsmb_g(ig,jg,n)
+< !         if (isnan(smb_col_total)) then
+< !           write(stdout,*) '+SMBC ISNAN',ig,jg,n
+< !           write(stdout,*) areas_g(ig,jg,n),qsmb_g(ig,jg,n)
+< !           write(stdout,*) '-SMBC ISNAN'
+< !         endif
+< !      end do
+< !      smb_total=smb_total+smb_col_total
+< !      if (isnan(smb_total) .or. (abs(smb_total)  > 100) ) then
+< !        write(stdout,*) '+SMB ISNAN',ig,jg
+< !        write(stdout,*) smb_col_total, smb_total
+< !        write(stdout,*) smb_col_total,areas_g(ig,jg,n),qsmb_g(ig,jg,n)
+< !        write(stdout,*) '-SMB ISNAN'
+< !      end if
+< !      !find all icesheet points that contribute to this GCM column and integrate.
+< !      do jl=1,nyl
+< !      do il=1,nxl
+< !         if (instance%ups%gboxx(il,jl).eq.ig .AND. instance%ups%gboxy(il,jl).eq.jg &
+< !             .AND.abs(instance%acab(il,jl)).gt.0                                   &
+< !            ) then
+< !           smb_interp_total=smb_interp_total+instance%acab(il,jl)*dxl*dyl
+< !           gnumloc=gnumloc+1.
+< !         endif
+< !      end do
+< !      end do
+< !      !adjust each non-zero icesheet point so that they match the GCM column integral
+< !      smb_adjust=smb_col_total-smb_interp_total
+< !      if (abs(smb_adjust).gt.0) then
+< !       do jl=1,nyl
+< !       do il=1,nxl
+< !          if (instance%ups%gboxx(il,jl).eq.ig .AND. instance%ups%gboxy(il,jl).eq.jg &
+< !             .AND.abs(instance%acab(il,jl)).gt.0                                   &
+< !             ) then
+< !            instance%acab(il,jl)=instance%acab(il,jl)+(smb_adjust/(dxl*dyl)/gnumloc)
+< !          endif
+< !       end do
+< !       end do
+< !      endif
+< !
+< !    end do !GCM gridbox loop
+< !    end do
+< !
+< !    write(stdout,*) 'ACAB Check 2 (max/min)', & 
+< !      maxval(instance%acab),minval(instance%acab),smb_total
+< !
+< !    !The above will miss points that are ice in the GCM but don't exist in the icesheet - 
+< !    !coastline/boundary mismatches etc can cause this. Do a final, full domain correction
+< !    smb_interp_total=0
+< !    do jl = 1, nyl
+< !    do il = 1, nxl
+< !       smb_interp_total=smb_interp_total+instance%acab(il,jl)*dxl*dyl
+< !    end do
+< !    end do
+< !    if (abs(smb_interp_total) .gt. 1e-12) then
+< !      write(stdout,*) 'ACAB mismatch components: '
+< !      write(stdout,*) 'ACAB-a ',&
+< !        maxval(instance%acab),smb_total,smb_interp_total
+< !      instance%acab=instance%acab*(smb_total/smb_interp_total)
+< !      write(stdout,*) 'ACAB-b ',&
+< !        maxval(instance%acab),(smb_total/smb_interp_total)
+< !    endif
+---
+>     write(6,*)"adjust SMB to conserve wrt each GCM gridbox. NASTY!"
+2139c1359,1367
+<     end if! areas_g
+---
+>     !!apply mask as glint_timestep will later do
+>     call glide_get_thk(instance%model,thck_temp)
+>     !where(thck_temp<=0.0 .and. instance%acab<0.0)
+>     where(thck_temp<=0.0)
+>       instance%acab = 0.0
+>     end where
+>     where (GLIDE_IS_OCEAN(instance%model%geometry%thkmask))
+>        instance%acab = 0.0
+>     endwhere
+2141,2142c1369,1406
+<     write(stdout,*) 'ACAB Check 3 (max/min)', & 
+<       maxval(instance%acab),minval(instance%acab)
+---
+>     smb_total=0
+>     !NH only
+>     do jg = 1, nyg/2
+>     do ig = 1, nxg
+>       smb_col_total=0.
+>       smb_interp_total=0.
+>       gnumloc=0.
+>       dxl=instance%lgrid%delta%pt(1)
+>       dyl=instance%lgrid%delta%pt(2)
+>       !fractional areas are all in areas_g, simple integral for GCM NEC column total
+>       do n = 1, nec
+>          smb_col_total=smb_col_total+areas_g(ig,jg,n)*qsmb_g(ig,jg,n)
+>       end do
+>       smb_total=smb_total+smb_col_total
+>       !find all icesheet points that contribute to this GCM column and integrate.
+>       do jl=1,nyl
+>       do il=1,nxl
+>          if (instance%ups%gboxx(il,jl).eq.ig .AND. instance%ups%gboxy(il,jl).eq.jg &
+>              .AND.abs(instance%acab(il,jl)).gt.0                                   &
+>             ) then
+>            smb_interp_total=smb_interp_total+instance%acab(il,jl)*dxl*dyl
+>            gnumloc=gnumloc+1.
+>          endif
+>       end do
+>       end do
+>       !adjust each non-zero icesheet point so that they match the GCM column integral
+>       smb_adjust=smb_col_total-smb_interp_total
+>       if (abs(smb_adjust).gt.0) then
+>        do jl=1,nyl
+>        do il=1,nxl
+>           if (instance%ups%gboxx(il,jl).eq.ig .AND. instance%ups%gboxy(il,jl).eq.jg &
+>              .AND.abs(instance%acab(il,jl)).gt.0                                   &
+>              ) then
+>             instance%acab(il,jl)=instance%acab(il,jl)+(smb_adjust/(dxl*dyl)/gnumloc)
+>           endif
+>        end do
+>        end do
+>       endif
+2144,2158c1408,1409
+<     !deallocate(qsmb_l, tsfc_l, topo_l, sdep_lE)
+<     deallocate(qsmb_l, tsfc_l, topo_l)
+<     if (present(sdep_g)) &
+<       deallocate(sdep_lE)
+<     !+seg
+<     deallocate(r_imask_l,r_nmask_l,r_lmask_l)
+<     deallocate(i_imask_l,i_nmask_l,i_lmask_l)
+<     deallocate(dummy_mask)
+<     if (do_halo) then  !30/aug/17
+<       deallocate(ddata_seg)
+<       deallocate(dmask_seg)
+<       deallocate(dmaskni_seg)
+<       deallocate(dmasktm_seg)
+<       deallocate(qsmb_g_temp)
+<       deallocate(gmask3D_temp)
+---
+>     end do !GCM gridbox loop
+>     end do
+2160c1411,1420
+<       deallocate(sdep_g_temp)
+---
+>     !The above will miss points that are ice in the GCM but don't exist in the icesheet - 
+>     !coastline/boundary mismatches etc can cause this. Do a final, full domain correction
+>     smb_interp_total=0
+>     do jl = 1, nyl
+>     do il = 1, nxl
+>        smb_interp_total=smb_interp_total+instance%acab(il,jl)*dxl*dyl
+>     end do
+>     end do
+>     if (abs(smb_interp_total) .gt. 1e-12) then
+>       instance%acab=instance%acab*(smb_total/smb_interp_total)
+2162a1423,1426
+>     end if! areas_g
+> 
+>     deallocate(qsmb_l, tsfc_l, topo_l, sdep_lE)
+> 
+2283a1548
+>                                        gtopo_gbm,             &
+2306a1572
+>     real(dp),dimension(nxg,nyg),intent(out) :: gtopo_gbm   ! GCM mean surface elevation - ie not on classes
+2321,2323d1586
+<     !TODO - Put this parameter elsewhere?  Make it equal to thkmin?
+<     real(dp), parameter :: min_thck = 1.0_dp    ! min thickness (m) for setting gfrac = 1
+< 
+2369a1633,1639
+>     !_gcm doesn't have a separate ups_orog
+>     call mean_to_global(instance%ups, &
+>                       instance%model%geometry%usrf, &
+>                       gtopo_gbm,    &
+>                       instance%out_mask)
+>     gtopo_gbm=thk0*gtopo_gbm
+> 
+2389a1660,1661
+>     ! UM will thus only see ice that's "owned" by the ISM, the rest of the mass
+>     ! is on UM non-ice tiles (via the noniice_snowdepth (gsdep) increments" 
+2394c1666
+<        if (local_thck(i,j) > min_thck) then
+---
+>        if (local_thck(i,j) > depth_ice2snow) then
+2401c1673
+<     !write(stdout,*) 'After temp 1' ! seg
+---
+> 
+2413d1684
+<     !write(stdout,*) 'After temp 2' ! seg
+2428d1698
+<     !write(stdout,*) 'After temp 3' ! seg
+2430d1699
+<       !write(stdout,*) 'Shouldnt be in here'
+2438d1706
+<       write(6,*)sum(lsdep),sum(gsdep)
+2444d1711
+<     !write(stdout,*) 'Before temp 4' ! seg
+2452d1718
+<     !write(stdout,*) 'After temp 4' ! seg
+2479d1744
+< !    local_field(:,:) = 0._dp
+2481,2482c1746,1754
+<      local_field(:,:) = instance%model%temper%ucondflx(:,:)
+< 
+---
+>     if (instance%model%climate%temp_upper_bc_type .gt. 0 ) then
+>       local_field(:,:) = instance%model%climate%artm
+>     else
+> #ifdef BISICLES_CDRIVER
+>       local_field(:,:) = instance%model%climate%hflx
+> #else
+>       local_field(:,:) = instance%model%temper%ucondflx(:,:)
+> #endif
+>     end if
+2526,2782d1797
+< 
+<   subroutine hval_index(inarr,outval)
+<   !
+<   ! SEG 28/6/17
+< 
+<   implicit none
+< 
+<   integer,intent(in)  :: inarr(:)
+<   integer,intent(out) :: outval
+< 
+<   ! local
+< 
+<   integer :: nvals,j
+< 
+<   nvals=size(inarr,1)
+< 
+<   hval1: do j=nvals,1,-1   ! Get peak value
+<     if (inarr(j) == 1) then
+<       outval=j
+<       exit
+<     endif
+< 
+<   end do hval1
+< 
+<   end subroutine hval_index
+< 
+<   subroutine hval_type(inarr,ipos,htype)
+< 
+<   !
+<   ! SEG 28/6/17
+<   implicit none
+< 
+<   integer,intent(in)   :: inarr(:)
+<   integer,intent(in)   :: ipos
+<   integer,intent(out)  :: htype
+< 
+<   ! local
+<   integer      :: iposd
+<   integer      :: nsize
+< 
+<   nsize=size(inarr,1)
+<   iposd = ipos - 1 
+<   !if ((iposd < 2)  .or. (ipos > nsize)) then
+<   !    call write_log('ERROR: In/out array indexe in hval_type',&
+<   !                                GM_FATAL,__FILE__,__LINE__)
+<   !endif
+< 
+<   htype = 0
+<   if ((inarr(ipos) == 1) .and. (inarr(iposd) == 1)) then
+<     htype = 1
+<   else if ((inarr(ipos) == 1) .and. (inarr(iposd) == 0)) then
+<     htype = 2
+<   else if ((inarr(ipos) == 0) .and. (inarr(iposd) == 1)) then
+<     htype = 3
+<   else
+<     htype = 0
+<   endif
+< 
+<   end subroutine hval_type
+< 
+<   subroutine create_halo_seg2(data_in,mask_in,data_out,mask_out,niter_override)
+<   !SEG 20/sep/17
+<   ! This version should create an average value from nearby points
+<   ! 
+<   implicit none
+< 
+<   real(dp), dimension(:,:), intent(in)  :: data_in
+<   integer ,dimension(:,:), intent(in)   :: mask_in
+<   real(dp), dimension(:,:), intent(out) :: data_out
+<   integer ,dimension(:,:), intent(out)  :: mask_out
+<   integer, intent(in), optional         :: niter_override
+< 
+< 
+<   ! local
+<   real(dp),dimension(:,:),allocatable   :: data_work
+<   integer ,dimension(:,:),allocatable  :: mask_work
+<   integer     :: niter
+<   integer     :: nx,ny
+<   integer     :: i,j,ii,jj,tt
+<   integer     :: xneg,xpos,yneg,ypos
+<   integer     :: mcount
+<   real(dp)    :: accum
+< 
+<   ! Decide how many time to iterate
+<   ! Maybe should check for valid number?
+<   if (present(niter_override)) then
+<     niter = niter_override
+<   else 
+<     niter = 2
+<   endif
+< 
+<   ! Data sizes
+<   nx=size(data_in,1)
+<   ny=size(data_in,2)
+<   write(stdout,*) 'Halo v2 check ',nx,ny,niter,maxval(data_in)
+< 
+<   allocate(data_work(nx,ny))
+<   allocate(mask_work(nx,ny))
+< 
+<   data_out=data_in
+<   mask_out=mask_in
+< 
+<   do tt=1,niter
+<  
+<     data_work=data_out
+<     mask_work=mask_out
+< 
+<     do i=1,nx
+<       do j=1,ny
+<         if (mask_out(i,j) < 1) then ! No value here, try to make one
+<           ! Create box around point
+<           xneg = max(i-1,1)
+<           xpos = min(i+1,nx)
+<           yneg = max(j-1,1)
+<           ypos = min(j+1,ny)
+<           accum=0.0
+<           mcount=0
+<           do ii = xneg,xpos
+<             do jj = yneg, ypos
+<               if (mask_out(ii,jj) > 0) then
+<                  mcount=mcount+1
+<                  accum=accum+data_out(ii,jj)
+<               endif
+<             end do
+<           end do 
+<           if (mcount > 0) then
+<             ! Create data value, and update mask
+<             data_work(i,j) = accum/mcount ! average value
+<             mask_work(i,j) = 1
+<           end if
+<         end if
+<       end do  
+<     end do    
+< 
+<     data_out=data_work
+<     mask_out=mask_work
+< 
+<   end do
+< 
+<   deallocate(data_work)
+<   deallocate(mask_work)
+< 
+<   end subroutine create_halo_seg2
+< 
+< 
+<   subroutine create_halo_seg(data_in,mask_in,data_out,mask_out)
+<   !SEG 30/aug/17
+<   implicit none
+< 
+<   real(dp), dimension(:,:), intent(in)  :: data_in
+<   integer ,dimension(:,:), intent(in)   :: mask_in
+<   real(dp), dimension(:,:), intent(out) :: data_out
+<   integer ,dimension(:,:), intent(out)  :: mask_out
+< 
+<   ! local
+<   integer nx,ny
+<   integer i,j,ii,jj
+<   integer xneg,xpos,yneg,ypos
+<   integer hcount
+< 
+<   data_out=data_in
+<   mask_out=mask_in
+<   !
+<   ! Create a halo of replicated data around point
+< 
+<   nx=size(data_in,1)
+<   ny=size(data_in,2)
+<   hcount = 0
+< 
+<   do i=1,nx
+<     do j=1,ny
+<       ! Could do the following on 'mask_out' but this would
+<       ! iterate the change. Unstable?
+<       if (mask_in(i,j) > 0) then ! We have a valid point
+<         ! Have to consider edge or central points
+<         xneg = i-1
+<         xpos = i+1
+<         yneg = j-1
+<         ypos = j+1
+<         ! Go around the halo
+<         do ii = xneg,xpos
+<           do jj = yneg, ypos
+<             if ( (ii .gt. 0) .and. (ii .le. nx) .and. &
+<                  (jj .gt. 0) .and. (jj .le. ny) ) then
+<                  if (mask_in(ii,jj) == 0) then
+<                     mask_out(ii,jj) = 1
+<                     data_out(ii,jj) = data_in(i,j)
+<                     hcount = hcount+1
+<                  endif
+<             endif
+<           end do
+<         end do
+<       endif  
+<     end do    
+<   end do
+<   write(stdout,*) 'Halo count seg ',hcount
+< 
+<   end subroutine create_halo_seg
+< 
+<   subroutine do_ice_wall(thkmask,usrf,thck,ice_wall)
+< 
+<   ! seg - serial only
+<   integer,dimension(:,:),intent(in)     :: thkmask
+<   real(dp),dimension(:,:),intent(in)    :: usrf
+<   real(sp),dimension(:,:),intent(inout) :: thck
+<   real(sp),dimension(:,:),intent(out)   :: ice_wall
+<   
+<   ! local
+<   real(sp), parameter  :: hcliff = 100.
+<   real(sp)             :: ice_thick_asl
+<   integer nx,ny 
+<   integer i,j,ii,jj
+<   integer xneg,xpos,yneg,ypos
+<   integer hcount
+<   real    usflocal
+< 
+<   nx=size(thck,1)
+<   ny=size(thck,2)
+< 
+<   ice_wall = 0.
+<   do i=1,nx
+<     do j=1,ny
+<       if (usrf(i,j) > 0) then ! We are above sealevel
+<         if ((usrf(i,j)-thck(i,j)) < 0) then ! grounded under sea
+<           ice_thick_asl = usrf(i,j)
+<         else
+<           ice_thick_asl = thck(i,j)
+<         endif
+<         if (ice_thick_asl > hcliff) then
+<           xneg = i-1
+<           xpos = i+1
+<           yneg = j-1
+<           ypos = j+1
+<           ! Go around the halo
+<           hcount=0
+<           do ii = xneg,xpos
+<             do jj = yneg, ypos
+<               if ( (ii .gt. 0) .and. (ii .le. nx) .and. &
+<                    (jj .gt. 0) .and. (jj .le. ny) ) then
+<                    ! GLIDE_IS_OCEAN - ocean and no ice
+<                    if (GLIDE_IS_OCEAN(thkmask(ii,jj)) .and. (hcount == 0) .and. &
+<                       (ii /= i) .and. (jj /= j)) then
+<                       ! Dump ice into first ocean point
+<                       ice_wall(ii,jj)=ice_wall(ii,jj)+ ice_thick_asl
+<                       ! Remove ice cliff
+<                       thck(i,j) = thck(i,j)-ice_thick_asl
+<                       hcount = 1
+<                    end if  
+<               endif
+<             end do
+<           end do
+<         endif  
+<       endif
+<     end do    
+<   end do
+<   write(stdout,*) 'Ice wall sum ',sum(ice_wall)
+<   end subroutine do_ice_wall
