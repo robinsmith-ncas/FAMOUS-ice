@@ -1,0 +1,116 @@
+*ID INITIALISE_ICE_TILES_MF77
+*/--------------------------------------------------------
+*/ Jamie Rae, June 2011
+*/--------------------------------------------------------
+*/
+*/-----
+*DECLARE CONTROL1
+*/-----
+*I ADR1F304.24
+     & , IS
+*I UDG4F402.5
+      INTEGER NSMAX
+      PARAMETER(NSMAX=10)
+      REAL DZSNOW(10)
+      DATA DZSNOW / 0.1, 0.25, 0.65, 2.0, 3.0, 4.0, 10.0, 
+     &                     20.0, 30.0, 1.0E+04 /
+*I UDG4F405.19
+      REAL, DIMENSION (:),    ALLOCATABLE :: D1_OUT_2
+      REAL, DIMENSION (:),    ALLOCATABLE :: D1_OUT_3
+*I UDG4F405.32
+      ALLOCATE (D1_OUT_2(LEN_ANCIL),STAT=STATUS)
+      ALLOCATE (D1_OUT_3(LEN_ANCIL),STAT=STATUS)
+*I UDG4F304.74
+        IF(PP_ITEMC_OUT(J).EQ.376) D1_OUT_2(I)=3000.0
+        IF(PP_ITEMC_OUT(J).EQ.382) D1_OUT_2(I)=300.0
+*I CONTROL1.1895
+             IF((PP_ITEMC_OUT(J).EQ.376)
+     &                   .AND.(K.EQ.N_FIELDS_OUT)) THEN
+             CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,LOOKUP_OUT,
+     &                     LEN1_LOOKUP_OUT,
+     &                     D1_OUT_2,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+
+             ELSE IF(PP_ITEMC_OUT(J).EQ.382) THEN
+               IF (K.EQ.9) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(1)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.18) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(2)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.27) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(3)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.36) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(4)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.45) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(5)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.54) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(6)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.63) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(7)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.72) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(8)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.81) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * DZSNOW(9)
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE IF (K.EQ.90) THEN
+                 D1_OUT_3(:) = D1_OUT_2(:) * 3000.0
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT_3,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ELSE
+                 CALL WRITFLDS(NFTOUT,1,PP_POS_OUT(J)+K-1,
+     &                     LOOKUP_OUT, LEN1_LOOKUP_OUT,
+     &                     D1_OUT,PP_LEN_OUT(J),FIXHD_OUT, 
+*CALL ARGPPX
+     &                     ICODE,CMESSAGE)
+               ENDIF
+             ELSE
+
+*I GDG0F401.346
+             ENDIF

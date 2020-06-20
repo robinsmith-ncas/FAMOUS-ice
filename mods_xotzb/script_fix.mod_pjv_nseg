@@ -1,0 +1,110 @@
+*ID SCRIPTFX2
+*/
+*/ Enables compile only job (STEP=0) to compile/run reconfiguration 
+*/ code as well.
+*/ Copy of following with 'echo -e' fix
+*/ /home/users/tp909989/um_home/famous/mods/scripts/script_fix.mod_pjv_new
+*/
+*DECLARE qsmaster
+*I qsmaster.77
+ulimit -s unlimited
+*D qsmaster.113
+*D GLW2U402.2,qsmaster.116
+*D qsmaster.142
+*/
+*/  If running with auto archiving on, then "assign -f 77 g:sf" will always
+*/  be done. This is mean't for running OASIS but will cause run to fail
+*/  on SGI (and probably other machines). Only do above assign if OASIS
+*/  is running, this is the master model and you are running on a CRAY MPP
+*/  machine. May need to change this if OASIS is ever ported to run on a 
+*/  machine other than a T3E.
+*/
+*DECLARE qsmain
+*I GPB0U304.19
+*IF DEF,CRAYMPP
+  if [ $OASIS = 'true' -a $OMASTER = 'true' ]
+  then
+*I CJC1U404.90
+  fi
+*D GEX4U402.141
+*I GLW1U404.247
+  if [ $OASIS = 'true' -a $OMASTER = 'true' ]
+  then
+*I CJC1U404.99
+  fi
+*/
+*/ mknod hardcoded to be /etc/mknod, this is not correct for newton.
+*/ Assume mknod is in PATH.
+*/
+*DECLARE qsmain
+*D qsmain.654
+  mknod $PIPE p                      # Create named pipe
+*/
+*/ Large size of PREOBJS (>4000 bytes) causes shell to corrupt variables
+*/ on newton. Split PREOBJS into 2 to fix this. Do the same for OBJS.
+*/
+*DECLARE qsmncompile
+*D GSH6U404.405
+  if (( $(echo -e $OBJS1 | wc -c) < 2000 ))
+  then
+    OBJS1="$OBJS1 $name.o"
+  else
+    OBJS2="$OBJS2 $name.o"
+  fi
+*D GSH1U403.423
+          if [[ "$PREOBJS1" = *"$name"* || "$PREOBJS2" = *"$name"* ]]
+*D GSH1U403.429
+          elif [[ "$OBJS1" = *"$name"* || "$OBJS2" = *"$name"* ]]
+*D GSH1U403.447
+          if [[ "$PREOBJS1" = *"$name"* || "$PREOBJS2" = *"$name"* ]]
+*D GSH1U403.450
+          elif [[ "$OBJS1" = *"$name"* || "$OBJS2" = *"$name"* ]]
+*D GSH1U403.518
+          if (( $(echo -e $PREOBJS1 | wc -c) < 2000 ))
+          then
+            PREOBJS1="$PREOBJS1 $file"
+          else
+            PREOBJS2="$PREOBJS2 $file"
+          fi
+*D GSH1U403.615
+          if (( $(echo -e $OBJS1 | wc -c) < 2000 ))
+          then
+            OBJS1="$OBJS1 $name.o"
+          else
+            OBJS2="$OBJS2 $name.o"
+          fi
+*D PXCLLMOD.61,PXCLLMOD.64
+echo "s^@nproc@^$NPROC^g"                            > $SEDSCRIPT
+echo -e `gen_sed_strsfe "@objects@" "6" "$OBJS1 $OBJS2"`          >> $SEDSCRIPT
+echo -e `gen_sed_strsfe "@preobjects@" "6" "$PREOBJS1 $PREOBJS2"` >> $SEDSCRIPT
+echo "s^@fort@^$FORT^g"                             >> $SEDSCRIPT
+*/
+*/ Hijack submitchk to delete files in $TEMP
+*/
+*/
+*DECLARE submitchk
+*D PXSUBCHK.1
+if [ -f $OPSTARTDIR/$RUNID-$SUBMITID ]
+then
+   rm -f $OPSTARTDIR/$RUNID-$SUBMITID
+fi
+*D GWRAU405.41
+   echo "RESUB_FILE = x"$RESUB_FILE"x"
+   if [ "$RESUB_FILE" != "" ]
+   then
+      if [ -f $RESUB_FILE ]
+*I GWRAU405.46
+      fi
+*D GWRAU405.55
+    if [ "$RUNNING_SCRIPT" != "yes" ]
+    then
+       rm -r $HOME/umui_runs/$RUNID*
+    fi
+#*I GWRAU405.57
+## remove $TEMP directory and all its files
+#echo "TEMP directory = $TEMP"
+#if [ -d $TEMP ]
+#then
+##   rm -rf $TEMP
+#fi
+

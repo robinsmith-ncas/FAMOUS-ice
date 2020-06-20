@@ -1,0 +1,74 @@
+*IDENT PJG4F405
+*DECLARE MODEL
+*I GDR2F405.20
+! 4.6       22.6.00   User level and pseudolevel codes  Jonathan Gregory
+*I MODEL.242   
+     &,USER_LEVEL_CODES(3,n_internal_model_max)
+     &,USER_PSEUDO_FIRST_CODES(3,n_internal_model_max)
+     &,USER_PSEUDO_LAST_CODES(3,n_internal_model_max)
+*I GSS1F400.1187  
+     &,USER_LEVEL_CODES
+     &,USER_PSEUDO_FIRST_CODES
+     &,USER_PSEUDO_LAST_CODES
+*D GSS3F401.2002,MODEL.330  
+     &,USER_LEVEL_CODES
+     &,USER_PSEUDO_FIRST_CODES
+     &,USER_PSEUDO_LAST_CODES
+*DECLARE ADDRES1
+*I ABX2F404.70
+!   4.6     22.6.00    Support for user pseudolevels. Jonathan Gregory
+*I GSS3F401.408
+     &,IUPSSM    ! User pseudolevel submodel
+     &,IUPSINDEX ! User pseudolevel index
+*I GSS3F401.414
+C     Analyse user pseudolevel codes
+C
+      IUPSSM=ILIN/100
+      IUPSINDEX=MOD(ILIN,100)
+*I GSS3F401.430   
+        ELSEIF (IUPSSM.GT.0.AND.IUPSINDEX.GE.1.AND.IUPSINDEX.LE.3) THEN
+	  ILOUT=USER_PSEUDO_FIRST_CODES(IUPSINDEX,IUPSSM)
+*B GSS3F401.448
+        ELSEIF (IUPSSM.GT.0.AND.IUPSINDEX.GE.1.AND.IUPSINDEX.LE.3) THEN
+	  ILOUT=USER_PSEUDO_LAST_CODES(IUPSINDEX,IUPSSM)
+*DECLARE PSLIMS1
+*I ABX1F404.3
+!   4.6     22.6.00    Support for user pseudolevels. Jonathan Gregory
+*I PSLIMS1.42
+C
+C      Local variables
+C
+      INTEGER
+     & IUPSSM    ! User pseudolevel submodel
+     &,IUPSINDEX ! User pseudolevel index
+*I PSLIMS1.45
+
+C     Analyse user pseudolevel codes
+      IUPSSM=IPFIRST/100
+      IUPSINDEX=MOD(IPFIRST,100)
+
+*I PSLIMS1.57    
+      ELSEIF (IUPSSM.GT.0.AND.IUPSINDEX.GE.1.AND.IUPSINDEX.LE.3) THEN
+	IFIRST=USER_PSEUDO_FIRST_CODES(IUPSINDEX,IUPSSM)
+*D PSLIMS1.62
+
+C     Analyse user pseudolevel codes
+      IUPSSM=IPLAST/100
+      IUPSINDEX=MOD(IPLAST,100)
+*I PSLIMS1.78    
+      ELSEIF (IUPSSM.GT.0.AND.IUPSINDEX.GE.1.AND.IUPSINDEX.LE.3) THEN
+	ILAST=USER_PSEUDO_LAST_CODES(IUPSINDEX,IUPSSM)
+*DECLARE RDBASIS1
+*I GBCVF405.168
+!   4.6    22.6.00     End of STSHCOMM is changed by inclusion of user
+!                      levels and pseudolevels. Jonathan Gregory
+*D GBCVF405.298
+      j=loc(USER_PSEUDO_LAST_CODES(3,n_internal_model_max))
+*DECLARE INPUTL1
+*I GRR0F403.272
+!   4.6     22.6.00    Pseudolevel numbers do not have to start at 1
+!                      Jonathan Gregory
+*D GSS3F401.619
+                PSLIST_D(NLEVIN-IPF+1,NPSLISTS)=NLEVIN
+
+      

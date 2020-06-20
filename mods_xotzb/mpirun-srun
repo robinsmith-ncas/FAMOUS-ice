@@ -1,0 +1,59 @@
+*ID MPIRUN
+*/
+*/ script mod for launching jobs with mpirun
+*/
+*/ NB: this mod makes use of the the modified "env" which
+*/     reads environment from a file
+*/
+*/ Alan Iwi
+*/
+*DECLARE qsmain
+*DEFINE LINUX,MPP
+*I GLW1U401.1010
+  envfile=$TMPDIR/environ.$SUBMITID
+  #
+  # Construct a machines file with the local host listed N times.
+  # This could be changed if the model is to run non-locally.
+  #
+  nnodes=$UM_NPES
+  machfile=$TMPDIR/machines.$SUBMITID
+  host=`hostname`
+  #host=localhost
+  (for count in `seq 1 $nnodes`;do echo $host;done) > $machfile
+  mpiopts="--ntasks=$nnodes --mpi=pmi2"
+  #mpiopts="-v -machinefile $machfile -np $nnodes"
+  #
+  # find out current "nice" level, so that all jobs run with the same
+  # nice level
+  #
+  nice=`awk '{print $19}' /proc/$$/stat`
+*D GPB0U304.11,GPB0U304.16
+  echo "#!/bin/sh" > $PAREXE
+  echo "ulimit -c 0" >> $PAREXE
+  echo "ulimit -s unlimited" >> $PAREXE
+  #echo "renice $nice \$\$" >> $PAREXE
+  echo "$LOADMODULE" '"$@"' >> $PAREXE
+*D GPB0U305.7
+  env > $envfile
+  echo "hello  $mpiopts $PAREXE"
+  eval time srun $mpiopts $PAREXE
+  CC=$?
+  rm -f $envfile $machfile
+*D qsmain.665
+*D GPB0U304.28,GPB0U304.33
+  echo "#!/bin/sh" > $PAREXE
+  echo "ulimit -c 0" >> $PAREXE
+  echo "ulimit -s unlimited" >> $PAREXE
+  #echo "renice $nice \$\$" >> $PAREXE
+  echo "$LOADMODULE" '"$@"' >> $PAREXE
+*D GLW1U404.249
+  env > $envfile
+  eval time srun $mpiopts $PAREXE
+  echo "hello  $mpiopts $PAREXE"
+  CC=$?
+  rm -f $envfile $machfile
+*D qsmain.677
+*/ Also add ulimit -s for recon exec
+*DECLARE qsprelim
+*I qsprelim.184
+ulimit -s unlimited
